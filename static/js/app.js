@@ -336,11 +336,13 @@ function formatTaskDur(sec) {
 }
 
 async function startTaskTimer(taskId) {
-    const h = activeHabitId(null);
-    if (h) { alert(`「${habitName(h)}」正在计时，请先暂停它再开始任务`); return; }
+    // 墙钟首次启动时弹注意事项（墙钟 auto start/resume 都算首次）
+    await showFirstTimeWallNotice();
     const res = await fetch(`/api/task/${taskId}/timer/start`, {method:'POST'});
     const data = await res.json();
-    if (data && data.success === false) { alert(data.error || '已有任务在计时'); return; }
+    if (data && data.success === false) { alert(data.error || '操作失败'); return; }
+    // 墙钟自动 start/resume 也触发注意事项（后端 wall_action 返回 auto_start/auto_resume）
+    if (data.wall_action === 'auto_start') markWallStartedToday();
     await loadToday();
 }
 
@@ -589,8 +591,8 @@ function renderTimer() {
     const status = document.getElementById('timerStatus');
     const pauseEl = document.getElementById('pauseCount');
 
-    // 总暂停次数 = 整体暂停 + 习惯任务暂停
-    const totalPause = (timer.pause_count || 0) + (todayData.habit_pause_count || 0);
+    // 暂停次数：统一口径 = 墙钟的 pause_count（墙钟 running→paused 次数，包含手动暂停 + 最后一个任务被 pause/stop 自动触发）
+    const totalPause = (timer.pause_count || 0);
     if (totalPause > 0) {
         pauseEl.textContent = `⏸ 今日暂停 ${totalPause} 次`;
     } else {
@@ -658,11 +660,9 @@ function startTimerFromModal() {
 
 async function timerAction(action) {
     if (action === 'start') {
-        const h = activeHabitId(null);
-        if (h) {
-            alert(`「${habitName(h)}」正在计时，请先暂停它再开始作业`);
-            return;
-        }
+        // 墙钟和习惯的互斥在后端 api_timer_start 做了
+        await showFirstTimeWallNotice();
+        markWallStartedToday();
     }
     const res = await fetch(`/api/timer/${action}`, {method: 'POST'});
     const data = await res.json();
@@ -671,6 +671,26 @@ async function timerAction(action) {
     if (action === 'start') {
         startBreakCheck();
     }
+}
+
+// ============ 墙钟首次启动注意事项 ============
+// 一天只弹一次：不管是手动点墙钟 start 还是点任务 ▶ 触发 wall auto start
+function markWallStartedToday() {
+    try { localStorage.setItem('wallStarted', new Date().toISOString().slice(0,10)); } catch {}
+}
+async function showFirstTimeWallNotice() {
+    let last = '';
+    try { last = localStorage.getItem('wallStarted') || ''; } catch {}
+    const today = new Date().toISOString().slice(0,10);
+    if (last === today) return;  // 今天已经弹过
+    // 用原生 confirm 弹（保证阻塞用户确认），然后让后续 timerAction 或 startTaskTimer 继续
+    const ok = window.confirm('📢 作业开始啦！\n\n' +
+                              '1. 墙钟 = 全局计时，暂停墙钟 = 所有任务一起暂停\n' +
+                              '2. 同一时刻只有一个任务在计时，点另一个任务会自动切过去\n' +
+                              '3. 每 20 分钟记得抬头远眺 20 秒护眼\n' +
+                              '4. 墙钟暂停次数 = 今天总共休息了几次\n\n' +
+                              '准备好了吗？');
+    if (ok) markWallStartedToday();
 }
 
 function startTimerDisplay() {

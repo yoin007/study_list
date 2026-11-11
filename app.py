@@ -932,6 +932,73 @@ def _task_session_seconds(row):
 
 
 # ============ 墙钟 ↔ 任务专注计时 联动 ============
+
+def _ensure_wall_running_if_idle(child_id, when_iso):
+    """任务启动时：若墙钟是 idle → 自动 start；若 paused → 自动 resume。
+    返回: ('started', reason)  reason='auto_start' | 'auto_resume' | 'already' | 'habit_running'"""
+    ts = get_timer_state(child_id)
+    today = date.today().isoformat()
+    db = get_db()
+
+    # 墙钟已 running：无需动作
+    if ts['status'] == 'running':
+        return ('already', None)
+
+    # 墙钟 paused → resume（把墙钟 pause_start 记入 total_paused，清掉 pause_start）
+    if ts['status'] == 'paused':
+        paused_dur = 0
+        if ts['pause_start']:
+            paused_dur = int((datetime.now() - datetime.fromisoformat(ts['pause_start'])).total_seconds())
+        ts['total_paused'] = (ts.get('total_paused') or 0) + paused_dur
+        ts['pause_start'] = None
+        ts['status'] = 'running'
+        db.execute("INSERT OR IGNORE INTO daily_records (child_id, date) VALUES (?, ?)", (child_id, today))
+        db.execute("UPDATE daily_records SET pause_count=? WHERE child_id=? AND date=?",
+                   (ts['pause_count'], child_id, today))
+        return ('auto_resume', None)
+
+    # wall_status == 'idle' → 检查习惯倒计时是否在跑（互斥）
+    habit_running = db.execute(
+        "SELECT 1 FROM habit_records hr JOIN habits h ON hr.habit_id=h.id "
+        "WHERE h.child_id=? AND hr.date=? AND hr.hb_start IS NOT NULL AND hr.hb_paused=0 LIMIT 1",
+        (child_id, today)).fetchone()
+    if habit_running:
+        return ('habit_running', None)
+
+    # 墙钟 idle → 自动 start
+    ts['status'] = 'running'
+    ts['start_time'] = when_iso
+    ts['pause_start'] = None
+    ts['total_paused'] = 0
+    ts['pause_count'] = 0
+    db.execute("INSERT OR IGNORE INTO daily_records (child_id, date) VALUES (?, ?)", (child_id, today))
+    db.execute("UPDATE daily_records SET start_time=?, pause_count=? WHERE child_id=? AND date=?",
+               (ts['start_time'], 0, child_id, today))
+    return ('auto_start', None)
+
+
+def _maybe_auto_pause_wall(child_id, when_iso):
+    """任务被 pause/stop 后：若没有任何任务在 running → 自动把墙钟置为 paused（暂停次数 +1）。
+    返回: True 表示墙钟被自动 pause 了。"""
+    ts = get_timer_state(child_id)
+    if ts['status'] != 'running':
+        return False
+    db = get_db()
+    today = date.today().isoformat()
+    still_running = db.execute(
+        "SELECT 1 FROM tasks WHERE child_id=? AND date=? AND tt_start IS NOT NULL AND tt_pause_start IS NULL LIMIT 1",
+        (child_id, today)).fetchone()
+    if still_running:
+        return False
+    # 自动 pause 墙钟
+    ts['status'] = 'paused'
+    ts['pause_start'] = when_iso
+    ts['pause_count'] += 1
+    db.execute("UPDATE daily_records SET pause_count=? WHERE child_id=? AND date=?",
+               (ts['pause_count'], child_id, today))
+    return True
+
+
 def _link_auto_start_task(db, child_id, today, when_iso):
     """墙钟开始：若没有任何任务在计时，自动开启第一个未完成任务。"""
     running = db.execute(
@@ -985,30 +1052,46 @@ def _link_settle_running_tasks(db, child_id, today):
 @app.route('/api/task/<task_id>/timer/start', methods=['POST'])
 def api_task_timer_start(task_id):
     db = get_db()
-    row = db.execute("SELECT tt_start, tt_pause_start, child_id, date FROM tasks WHERE id=?", (task_id,)).fetchone()
+    row = db.execute("SELECT tt_start, tt_pause_start, tt_accum, child_id, date FROM tasks WHERE id=?", (task_id,)).fetchone()
     if not row:
         return jsonify({'error': '任务不存在'}), 404
     now = datetime.now().isoformat()
-    # 已在运行：直接返回
-    if row['tt_start'] and not row['tt_pause_start']:
-        return jsonify({'success': True, 'running': True, 'paused': False})
-    # 全新一轮防双开：当天已有另一任务在运行则拒绝
-    if not row['tt_start']:
+    child_id = row['child_id']
+    today = row['date']
+
+    # ① 互斥：若有其他任务正在 running → 自动暂停它（不再 409 拒绝）
+    if not row['tt_start'] or row['tt_pause_start']:
         other = db.execute(
-            "SELECT 1 FROM tasks WHERE child_id=? AND date=? AND tt_start IS NOT NULL "
-            "AND tt_pause_start IS NULL AND id!=? LIMIT 1",
-            (row['child_id'], row['date'], task_id)).fetchone()
+            "SELECT id, tt_start, tt_accum FROM tasks WHERE child_id=? AND date=? AND done=0 "
+            "AND tt_start IS NOT NULL AND tt_pause_start IS NULL AND id!=? LIMIT 1",
+            (child_id, today, task_id)).fetchone()
         if other:
-            return jsonify({'success': False, 'error': '已有任务在计时，请先完成或暂停当前任务'}), 409
+            sess = int((datetime.now() - datetime.fromisoformat(other['tt_start'])).total_seconds())
+            new_accum = (other['tt_accum'] or 0) + sess
+            db.execute("UPDATE tasks SET tt_accum=?, tt_pause_start=?, tt_pause_count=COALESCE(tt_pause_count,0)+1 WHERE id=?",
+                       (new_accum, now, other['id']))
+
+    # ② 启动/恢复当前任务
     if row['tt_pause_start']:
-        # 暂停态 → 恢复计时（保留已累计）
         db.execute("UPDATE tasks SET tt_start=?, tt_pause_start=NULL WHERE id=?", (now, task_id))
-    else:
-        # 全新一轮
+    elif not row['tt_start']:
         db.execute("UPDATE tasks SET tt_start=?, tt_pause_start=NULL, tt_accum=0, tt_pause_count=0 WHERE id=?",
                    (now, task_id))
+    # 已在 running → 不动
+
+    # ③ 墙钟联动：idle→auto start；paused→auto resume；若习惯倒计时在跑则拒绝
+    wall_action, _ = _ensure_wall_running_if_idle(child_id, now)
+    if wall_action == 'habit_running':
+        # 回滚：把刚才启动的任务撤掉
+        db.execute("UPDATE tasks SET tt_start=NULL, tt_pause_start=NULL, tt_accum=0, tt_pause_count=0 WHERE id=?", (task_id,))
+        # 刚才被我们自动 pause 的其他任务也要恢复
+        db.execute("UPDATE tasks SET tt_start=?, tt_pause_start=NULL WHERE child_id=? AND date=? AND id!=? AND tt_pause_start=?",
+                   (now, child_id, today, task_id, now))
+        db.commit()
+        return jsonify({'success': False, 'error': '习惯任务正在倒计时，请先暂停习惯再开始作业'}), 409
+
     db.commit()
-    return jsonify({'success': True, 'running': True, 'paused': False})
+    return jsonify({'success': True, 'running': True, 'paused': False, 'wall_action': wall_action})
 
 
 @app.route('/api/task/<task_id>/timer/pause', methods=['POST'])
@@ -1018,32 +1101,42 @@ def api_task_timer_pause(task_id):
                      (task_id,)).fetchone()
     if not row:
         return jsonify({'error': '任务不存在'}), 404
+    paused = False
+    wall_action = None
     if row['tt_start'] and not row['tt_pause_start']:
+        now = datetime.now().isoformat()
         sess = int((datetime.now() - datetime.fromisoformat(row['tt_start'])).total_seconds())
         new_accum = (row['tt_accum'] or 0) + sess
         db.execute("UPDATE tasks SET tt_accum=?, tt_pause_start=?, tt_pause_count=COALESCE(tt_pause_count,0)+1 WHERE id=?",
-                   (new_accum, datetime.now().isoformat(), task_id))
-        # 并入当日总暂停计数（家长可见）
-        db.execute("UPDATE daily_records SET pause_count=COALESCE(pause_count,0)+1 WHERE child_id=? AND date=?",
-                   (row['child_id'], date.today().isoformat()))
+                   (new_accum, now, task_id))
+        # 注意：不再直接改 daily_records.pause_count，统一由 _maybe_auto_pause_wall 管
+        paused = True
+        # 墙钟联动：若没有任何任务在 running → 自动 pause 墙钟
+        if _maybe_auto_pause_wall(row['child_id'], now):
+            wall_action = 'auto_pause'
         db.commit()
-    return jsonify({'success': True, 'paused': True})
+    return jsonify({'success': True, 'paused': paused, 'wall_action': wall_action})
 
 
 @app.route('/api/task/<task_id>/timer/stop', methods=['POST'])
 def api_task_timer_stop(task_id):
     db = get_db()
-    row = db.execute("SELECT tt_start, tt_pause_start, tt_accum, duration_seconds FROM tasks WHERE id=?",
+    row = db.execute("SELECT tt_start, tt_pause_start, tt_accum, duration_seconds, child_id FROM tasks WHERE id=?",
                      (task_id,)).fetchone()
     if not row:
         return jsonify({'error': '任务不存在'}), 404
     elapsed = _task_session_seconds(row)
+    wall_action = None
     if row['tt_start']:
+        now = datetime.now().isoformat()
         db.execute("UPDATE tasks SET duration_seconds=COALESCE(duration_seconds,0)+?, tt_start=NULL, tt_pause_start=NULL, tt_accum=0, tt_pause_count=0 WHERE id=?",
                    (elapsed, task_id))
+        # 墙钟联动
+        if _maybe_auto_pause_wall(row['child_id'], now):
+            wall_action = 'auto_pause'
         db.commit()
     row2 = db.execute("SELECT duration_seconds FROM tasks WHERE id=?", (task_id,)).fetchone()
-    return jsonify({'success': True, 'added': elapsed, 'total': row2['duration_seconds'] if row2 else 0})
+    return jsonify({'success': True, 'added': elapsed, 'total': row2['duration_seconds'] if row2 else 0, 'wall_action': wall_action})
 
 
 @app.route('/api/task/<task_id>/timer/reset', methods=['POST'])
