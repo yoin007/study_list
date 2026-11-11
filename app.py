@@ -219,6 +219,10 @@ def init_db():
                       ('hb_pause_count','INTEGER DEFAULT 0')]:
         if hcols and hc not in hcols:
             db.execute(f"ALTER TABLE habit_records ADD COLUMN {hc} {htype}")
+    # 今日完成时刻（首次必做全完成的时间；取消勾选必做时清空）
+    dcols = [r[1] for r in db.execute("PRAGMA table_info(daily_records)").fetchall()]
+    if dcols and 'completed_at' not in dcols:
+        db.execute("ALTER TABLE daily_records ADD COLUMN completed_at TEXT")
     db.commit()
 
     # 默认设置
@@ -890,30 +894,69 @@ def api_import():
 @app.route('/api/task/<task_id>/toggle', methods=['POST'])
 def api_toggle_task(task_id):
     db = get_db()
-    t = db.execute("SELECT done, child_id, date, duration_seconds, tt_start, tt_pause_start, tt_accum FROM tasks WHERE id=?", (task_id,)).fetchone()
+    t = db.execute("SELECT done, child_id, date, priority, tt_start, tt_pause_start, tt_accum FROM tasks WHERE id=?",
+                   (task_id,)).fetchone()
     if not t:
         return jsonify({'error': '任务不存在'}), 404
     new_done = 0 if t['done'] else 1
-    done_time = datetime.now().isoformat() if new_done else None
+    child_id = t['child_id']
+    today = t['date']
+    now_iso = datetime.now().isoformat()
     started_next = None
+    celebration = None
+    optional_remaining = 0
+    # 勾选时该任务是否正在计时（决定是否自动接力）
+    was_running = bool(t['tt_start']) and not t['tt_pause_start']
+
     # 勾选完成时，自动结算该任务正在进行的计时（时间戳）
     if new_done and t['tt_start']:
         elapsed = _task_session_seconds(t)
         db.execute("UPDATE tasks SET duration_seconds=COALESCE(duration_seconds,0)+?, tt_start=NULL, tt_pause_start=NULL, tt_accum=0, tt_pause_count=0 WHERE id=?",
                    (elapsed, task_id))
-    db.execute("UPDATE tasks SET done=?, done_time=? WHERE id=?", (new_done, done_time, task_id))
-    # 完成后自动接力：开启同一天下一个未完成、且未在计时的任务
+    db.execute("UPDATE tasks SET done=?, done_time=? WHERE id=?",
+               (new_done, now_iso if new_done else None, task_id))
+
     if new_done:
-        nxt = db.execute(
-            "SELECT id FROM tasks WHERE child_id=? AND date=? AND done=0 AND tt_start IS NULL "
-            "ORDER BY sort_order, rowid LIMIT 1",
-            (t['child_id'], t['date'])).fetchone()
-        if nxt:
-            db.execute("UPDATE tasks SET tt_start=?, tt_pause_start=NULL, tt_accum=0, tt_pause_count=0 WHERE id=?",
-                       (datetime.now().isoformat(), nxt['id']))
-            started_next = nxt['id']
+        rem_req = db.execute("SELECT COUNT(*) FROM tasks WHERE child_id=? AND date=? AND done=0 AND priority='必做'",
+                             (child_id, today)).fetchone()[0]
+        rem_opt = db.execute("SELECT COUNT(*) FROM tasks WHERE child_id=? AND date=? AND done=0 AND priority='选做'",
+                             (child_id, today)).fetchone()[0]
+        optional_remaining = rem_opt
+        db.execute("INSERT OR IGNORE INTO daily_records (child_id, date) VALUES (?, ?)", (child_id, today))
+
+        if rem_req == 0:
+            # 必做全完成：记录完成时刻（只记第一次）
+            old_completed = db.execute("SELECT completed_at FROM daily_records WHERE child_id=? AND date=?",
+                                       (child_id, today)).fetchone()
+            first_required_done = old_completed and old_completed['completed_at'] is None
+            db.execute("UPDATE daily_records SET completed_at=COALESCE(completed_at, ?) WHERE child_id=? AND date=?",
+                       (now_iso, child_id, today))
+            if rem_opt == 0:
+                celebration = 'all_done'   # 必做+选做全部完成
+            elif first_required_done:
+                celebration = 'required_done'  # 首次必做全完成，弹窗询问是否继续选做
+            # 挂起墙钟（不记休息次数）：作业结束是检查点，不是休息
+            _suspend_wall_if_no_task_running(db, child_id, today, now_iso)
+        elif was_running:
+            # 还有必做且完成的是正在计时的任务 → 自动接力下一个必做
+            nxt = db.execute(
+                "SELECT id FROM tasks WHERE child_id=? AND date=? AND done=0 AND priority='必做' "
+                "ORDER BY sort_order, rowid LIMIT 1",
+                (child_id, today)).fetchone()
+            if nxt:
+                wall_action, _ = _ensure_wall_running_if_idle(child_id, now_iso)
+                if wall_action != 'habit_running':
+                    db.execute("UPDATE tasks SET tt_start=?, tt_pause_start=NULL, tt_accum=0, tt_pause_count=0 WHERE id=?",
+                               (now_iso, nxt['id']))
+                    started_next = nxt['id']
+    else:
+        # 取消勾选必做 → 清空完成时刻，重新全完成时再记录
+        if t['priority'] == '必做':
+            db.execute("UPDATE daily_records SET completed_at=NULL WHERE child_id=? AND date=? AND completed_at IS NOT NULL",
+                       (child_id, today))
     db.commit()
-    return jsonify({'success': True, 'started_next': started_next})
+    return jsonify({'success': True, 'started_next': started_next,
+                    'celebration': celebration, 'optional_remaining': optional_remaining})
 
 
 # 单任务计时：时间戳落库结算，支持暂停，重启不丢
@@ -996,6 +1039,22 @@ def _maybe_auto_pause_wall(child_id, when_iso):
     ts['pause_count'] += 1
     db.execute("UPDATE daily_records SET pause_count=? WHERE child_id=? AND date=?",
                (ts['pause_count'], child_id, today))
+    return True
+
+
+def _suspend_wall_if_no_task_running(db, child_id, today, when_iso):
+    """必做全完成时挂起墙钟：running → paused，但【不】增加休息次数。
+    作业结束是检查点，不是休息；之后若做选做/新任务，墙钟自动恢复。"""
+    ts = get_timer_state(child_id)
+    if ts['status'] != 'running':
+        return False
+    still_running = db.execute(
+        "SELECT 1 FROM tasks WHERE child_id=? AND date=? AND tt_start IS NOT NULL AND tt_pause_start IS NULL LIMIT 1",
+        (child_id, today)).fetchone()
+    if still_running:
+        return False
+    ts['status'] = 'paused'
+    ts['pause_start'] = when_iso
     return True
 
 
@@ -1241,6 +1300,18 @@ def api_timer_pause():
         # 联动：恢复任务专注计时
         _link_resume_paused_task(db, child_id, today, now_iso)
     db.commit()
+    return jsonify({'success': True, 'timer': ts})
+
+
+@app.route('/api/timer/suspend', methods=['POST'])
+def api_timer_suspend():
+    """作业结束挂起墙钟：暂停但不增加休息次数（区别于手动暂停）。"""
+    child_id = get_child_id()
+    ts = get_timer_state(child_id)
+    now_iso = datetime.now().isoformat()
+    if ts['status'] == 'running':
+        ts['status'] = 'paused'
+        ts['pause_start'] = now_iso
     return jsonify({'success': True, 'timer': ts})
 
 

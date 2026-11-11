@@ -141,6 +141,22 @@
     </div>
 </div>
 
+<!-- 必做全完成弹窗（还有选做时询问） -->
+<div class="celebrate-modal" id="requiredDoneModal">
+    <div class="celebrate-content">
+        <div class="emoji">🌟</div>
+        <h2>必做任务全部完成！</h2>
+        <p style="color:#999;">还有 <span id="optionalRemainCount" style="color:#f5a623;font-weight:bold;">0</span> 个选做任务</p>
+        <p style="color:#f5a623;font-size:18px;">已获得 <span style="font-weight:bold;">+30</span> 积分</p>
+        <br>
+        <button class="timer-btn" onclick="continueOptional()">继续做选做</button>
+        <button class="timer-btn" style="background:#eee;color:#666;" onclick="finishToday()">今天到此为止</button>
+    </div>
+</div>
+
+<!-- 轻提示容器 -->
+<div id="toastBox" class="toast-box"></div>
+
 <!-- 加到主屏幕引导（非全屏时显示，可关闭） -->
 <div id="homePrompt" class="home-prompt" style="display:none;">
     <span id="homePromptText">📲 把本页"添加到主屏幕"，下次点图标直接全屏进入</span>

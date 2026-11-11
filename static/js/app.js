@@ -228,6 +228,8 @@ async function loadToday() {
         } else {
             document.getElementById('parentNote').style.display = 'none';
         }
+        // 护眼/休息提醒轮询（覆盖墙钟手动开启和任务自动开启两种路径）
+        startBreakCheck();
     } catch (e) {
         console.error('加载失败', e);
     }
@@ -395,30 +397,85 @@ function speakText(text) {
 // ========== 任务勾选 ==========
 async function toggleTask(taskId) {
     playSound('tick');
-    await fetch(`/api/task/${taskId}/toggle`, {method: 'POST'});
+    const res = await fetch(`/api/task/${taskId}/toggle`, {method: 'POST'});
+    const data = await res.json();
     await loadToday();
-    checkAllComplete();
+    if (!data || !data.success) return;
+    const doneTask = (todayData.tasks || []).find(t => String(t.id) === String(taskId));
+    if (data.started_next) {
+        const next = (todayData.tasks || []).find(t => String(t.id) === String(data.started_next));
+        showToast(`✅ ${doneTask ? doneTask.desc : '任务'}完成 · 已开始「${next ? next.desc : '下一个任务'}」`);
+    }
+    if (data.celebration === 'all_done') {
+        showCelebrate();
+    } else if (data.celebration === 'required_done') {
+        showRequiredDone(data.optional_remaining);
+    }
 }
 
-// 检查是否全部完成
-function checkAllComplete() {
-    if (!todayData.tasks) return;
-    const allDone = todayData.tasks.every(t => t.done);
-    const hasTasks = todayData.tasks.length > 0;
-    if (allDone && hasTasks) {
-        playSound('complete');
-        document.getElementById('celebrateModal').classList.add('show');
-        // 浏览器通知
-        if (Notification.permission === 'granted') {
-            new Notification('🎉 太棒了！', {body: '今天的作业全部完成啦！'});
-        } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission().then(p => {
-                if (p === 'granted') {
-                    new Notification('🎉 太棒了！', {body: '今天的作业全部完成啦！'});
-                }
-            });
-        }
+// 完成庆祝弹窗（必做+选做全部完成）
+function showCelebrate() {
+    playSound('complete');
+    const timer = todayData.timer;
+    let elapsed = 0;
+    if (timer.start_time) {
+        const start = new Date(timer.start_time);
+        const end = timer.pause_start ? new Date(timer.pause_start) : new Date();
+        elapsed = Math.max(0, Math.floor((end - start) / 1000) - Math.floor(timer.total_paused || 0));
     }
+    const tu = document.getElementById('timeUsed');
+    if (tu) tu.textContent = '总用时 ' + formatTime(elapsed);
+    const optDone = (todayData.tasks || []).filter(t => t.done && t.priority === '选做').length;
+    const cp = document.getElementById('celebratePoints');
+    if (cp) cp.textContent = 30 + optDone * 10;
+    document.getElementById('celebrateModal').classList.add('show');
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        new Notification('🎉 太棒了！', {body: '今天的作业全部完成啦！'});
+    }
+}
+
+function closeCelebrate() {
+    document.getElementById('celebrateModal').classList.remove('show');
+}
+
+// 必做全完成但还有选做：弹窗询问继续还是结束
+function showRequiredDone(optRemaining) {
+    playSound('complete');
+    const cnt = document.getElementById('optionalRemainCount');
+    if (cnt) cnt.textContent = optRemaining;
+    document.getElementById('requiredDoneModal').classList.add('show');
+}
+function closeRequiredDone() {
+    document.getElementById('requiredDoneModal').classList.remove('show');
+}
+async function continueOptional() {
+    closeRequiredDone();
+    const next = (todayData.tasks || []).find(t => !t.done && t.priority === '选做');
+    if (next) {
+        await startTaskTimer(next.id);
+    } else {
+        await loadToday();
+    }
+}
+async function finishToday() {
+    closeRequiredDone();
+    await fetch('/api/timer/suspend', {method: 'POST'});
+    await loadToday();
+    showToast('👍 今天的作业完成，休息一下吧！');
+}
+
+// 轻提示（自动消失，不打断操作）
+function showToast(msg, dur = 2600) {
+    const box = document.getElementById('toastBox');
+    if (!box) return;
+    const el = document.createElement('div');
+    el.className = 'toast-item';
+    el.textContent = msg;
+    box.appendChild(el);
+    setTimeout(() => {
+        el.classList.add('hide');
+        setTimeout(() => el.remove(), 350);
+    }, dur);
 }
 
 // ========== 习惯任务 ==========
@@ -729,7 +786,7 @@ function formatTime(seconds) {
 // ========== 休息提醒 ==========
 function startBreakCheck() {
     if (breakCheckInterval) clearInterval(breakCheckInterval);
-    let break20Shown = false;
+    let lastBreak20 = 0;   // 上次 20 分钟远眺提醒的基准（循环提醒）
     let break45Shown = false;
     let break60Shown = false;
 
@@ -741,10 +798,10 @@ function startBreakCheck() {
         const now = new Date();
         let elapsed = Math.floor((now - start) / 1000) - Math.floor(timer.total_paused || 0);
 
-        // 每20分钟提醒远眺
-        if (!break20Shown && elapsed >= 1200) {
-            break20Shown = true;
-            showBreakModal('☕ 休息一下', '已经写了20分钟啦，抬头看看远处20秒，让眼睛休息一下！');
+        // 每满 20 分钟连续作业提醒远眺（每 20 分钟循环一次）
+        if (elapsed - lastBreak20 >= 1200) {
+            lastBreak20 = Math.floor(elapsed / 1200) * 1200;
+            showBreakModal('☕ 休息一下', `已经连续写了 ${Math.floor(elapsed / 60)} 分钟啦，抬头看看远处 20 秒，让眼睛休息一下！`);
         }
         // 45分钟提醒活动身体
         if (!break45Shown && elapsed >= 2700) {
