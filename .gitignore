@@ -1,0 +1,41 @@
+# ========== Python ==========
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+venv/
+.env
+
+# ========== 运行态数据（不进 git，留本地） ==========
+data/app.db
+data/app.db-shm
+data/app.db-wal
+data/app.db-journal
+data/app.db-shm-journal
+data/settings.json
+data/tasks.json
+data/timer.json
+
+# 备份目录（包含 app.db 快照 + 附件元数据，本地自动生成）
+backups/
+
+# 附件目录（用户上传的图片/视频/PDF，体积大且是运行时数据）
+attachments/
+
+# ========== 系统/编辑器 ==========
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ========== 临时/日志 ==========
+*.log
+/tmp/
+*.tmp
+
+# ========== TRAE IDE 工作目录（插件数据/会话缓存） ==========
+.trae-html-share-packages/
+.trae/

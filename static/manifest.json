@@ -1,0 +1,19 @@
+{
+  "name": "小学生作业清单",
+  "short_name": "作业清单",
+  "description": "孩子每日作业清单、计时与积分奖励",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f7fb",
+  "theme_color": "#4A90D9",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

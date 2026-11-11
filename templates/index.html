@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>今日作业</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=20261017d">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div class="top-bar">
+    <div>
+        <h1>📚 今日作业</h1>
+        <div class="date-display" id="dateDisplay"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+        <select id="childSelector" onchange="switchChild()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 8px;font-size:13px;">
+        </select>
+        <button class="admin-entry" onclick="showAdminLogin()">⚙</button>
+    </div>
+</div>
+
+<div class="main-content">
+
+    <!-- 计时器卡片 -->
+    <div class="timer-card">
+        <div style="font-size:14px;color:#999;">作业计时</div>
+        <div class="timer-display" id="timerDisplay">00:00</div>
+        <button class="timer-btn" id="timerBtn" onclick="handleTimer()">开始写作业</button>
+        <div class="timer-status" id="timerStatus"></div>
+        <div id="pauseCount" style="font-size:13px;color:#999;margin-top:4px;"></div>
+    </div>
+
+    <!-- 任务清单 -->
+    <div id="taskList"></div>
+
+    <!-- 习惯任务 -->
+    <div class="habit-section" id="habitSection" style="display:none;">
+        <h3>📋 每日习惯</h3>
+        <div id="habitList"></div>
+    </div>
+
+    <!-- 积分显示 -->
+    <div class="timer-card" id="pointsCard" style="display:none;">
+        <div style="font-size:14px;color:#999;">今日已获积分</div>
+        <div style="font-size:36px;font-weight:700;color:#f5a623;" id="todayPoints">0</div>
+    </div>
+
+</div>
+
+<!-- 护眼小贴士弹窗 -->
+<div class="eye-care-modal" id="eyeCareModal">
+    <div class="eye-care-content">
+        <h2>👀 写作业前先注意</h2>
+        <ul style="text-align:left;display:inline-block;">
+            <li>坐直了！胸口离桌沿一拳</li>
+            <li>眼睛离书本一尺远</li>
+            <li>握笔手指离笔尖一寸</li>
+            <li>光线从左前方照过来</li>
+            <li>不要趴着、躺着写作业</li>
+            <li>每20分钟抬头看看远处</li>
+        </ul>
+        <br>
+        <button class="timer-btn" onclick="startTimerFromModal()">知道了，开始写！</button>
+    </div>
+</div>
+
+<!-- 休息提醒弹窗 -->
+<div class="eye-care-modal" id="breakModal">
+    <div class="eye-care-content">
+        <h2>☕ 休息一下</h2>
+        <p style="font-size:16px;">看了20分钟书啦，抬头看看远处20秒吧！</p>
+        <br>
+        <button class="timer-btn" onclick="closeBreakModal()">休息好了，继续写</button>
+    </div>
+</div>
+
+<!-- 附件预览弹窗 -->
+<div class="att-modal" id="attModal">
+    <button class="att-close" onclick="closeAttModal()">✕</button>
+    <div class="att-modal-content" id="attModalContent"></div>
+</div>
+
+<!-- 完成庆祝弹窗 -->
+<div class="celebrate-modal" id="celebrateModal">
+    <div class="celebrate-content">
+        <div class="emoji">🎉</div>
+        <h2>全部完成啦！</h2>
+        <p style="color:#999;">今天的作业都写完了，真棒！</p>
+        <div class="time-used" id="timeUsed"></div>
+        <p style="color:#f5a623;font-size:18px;">获得 <span id="celebratePoints">0</span> 积分</p>
+        <br>
+        <button class="timer-btn" onclick="closeCelebrate()">好的！</button>
+    </div>
+</div>
+
+<!-- 底部导航 -->
+<div class="bottom-nav">
+    <a href="/" class="active"><span class="icon">📋</span>今日</a>
+    <a href="/rewards"><span class="icon">🏆</span>奖励</a>
+    <a href="/history"><span class="icon">📅</span>历史</a>
+</div>
+
+<script src="/static/js/app.js?v=20261017f"></script>
+</body>
+</html>

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史记录</title>
+    <link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#4A90D9">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="作业清单">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/style.css?v=20261019b">
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>📅 历史记录</h1>
+    <select id="historyChildSelector" onchange="switchHistoryChild()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 8px;font-size:13px;">
+    </select>
+</div>
+
+<div class="main-content">
+
+    <!-- 统计概览 -->
+    <div class="admin-section">
+        <h3>📊 本月统计 <button onclick="exportCSV()" style="float:right;background:#4a90d9;color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;">导出CSV</button></h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;margin-bottom:16px;">
+            <div style="background:#e8f5e9;border-radius:8px;padding:12px;">
+                <div style="font-size:24px;font-weight:700;color:#2e7d32;" id="statComplete">0</div>
+                <div style="font-size:12px;color:#666;">全完成天数</div>
+            </div>
+            <div style="background:#e3f2fd;border-radius:8px;padding:12px;">
+                <div style="font-size:24px;font-weight:700;color:#1565c0;" id="statAvgTime">0</div>
+                <div style="font-size:12px;color:#666;">平均用时(分)</div>
+            </div>
+            <div style="background:#fff3e0;border-radius:8px;padding:12px;">
+                <div style="font-size:24px;font-weight:700;color:#e65100;" id="statPoints">0</div>
+                <div style="font-size:12px;color:#666;">本月积分</div>
+            </div>
+        </div>
+        <!-- 近7天完成情况柱状图 -->
+        <h4 style="font-size:14px;margin-bottom:8px;">近7天完成情况</h4>
+        <div id="weekChart" style="display:flex;align-items:flex-end;gap:6px;height:100px;padding:10px 0;border-bottom:1px solid #eee;"></div>
+        <div id="weekChartLabels" style="display:flex;gap:6px;font-size:10px;color:#999;"></div>
+    </div>
+
+    <!-- 日历 -->
+    <div class="admin-section">
+        <div class="cal-nav">
+            <button onclick="changeMonth(-1)">‹ 上月</button>
+            <div id="calTitle" style="font-weight:600;"></div>
+            <button onclick="changeMonth(1)">下月 ›</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div style="font-size:12px;color:#999;margin-top:8px;">
+            <span style="color:#4caf50;">●</span> 全部完成 &nbsp;
+            <span style="color:#ffc107;">●</span> 部分完成 &nbsp;
+            <span style="color:#999;">●</span> 未开始
+        </div>
+    </div>
+
+    <!-- 选中日期详情 -->
+    <div class="admin-section" id="dayDetail" style="display:none;">
+        <h3 id="detailTitle"></h3>
+        <div id="detailContent"></div>
+    </div>
+
+</div>
+
+<div class="bottom-nav">
+    <a href="/"><span class="icon">📋</span>今日</a>
+    <a href="/rewards"><span class="icon">🏆</span>奖励</a>
+    <a href="/history" class="active"><span class="icon">📅</span>历史</a>
+    <a href="/notes"><span class="icon">📝</span>随手记<span id="notesDueBadge" style="display:none;position:absolute;top:-2px;right:-4px;background:#e74c3c;color:white;font-size:10px;line-height:1;padding:0 4px;border-radius:8px;"></span></a>
+</div>
+
+<script>
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let historyChildId = 1;
+
+async function loadHistoryChildren() {
+    const res = await fetch('/api/children');
+    const data = await res.json();
+    const sel = document.getElementById('historyChildSelector');
+    sel.innerHTML = '';
+    data.children.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        if (c.id === historyChildId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+function switchHistoryChild() {
+    historyChildId = parseInt(document.getElementById('historyChildSelector').value);
+    loadCalendar();
+}
+
+async function loadCalendar() {
+    const res = await fetch(`/api/history/calendar?year=${currentYear}&month=${currentMonth}&child_id=${historyChildId}`);
+    const data = await res.json();
+
+    document.getElementById('calTitle').textContent = `${currentYear}年${currentMonth}月`;
+
+    let html = '';
+    const headers = ['一', '二', '三', '四', '五', '六', '日'];
+    headers.forEach(h => {
+        html += `<div class="calendar-header">${h}</div>`;
+    });
+
+    data.days.forEach(d => {
+        if (!d) {
+            html += `<div class="cal-day empty"></div>`;
+        } else {
+            const minStr = d.elapsed_seconds > 0 ? `<span class="count" style="color:#888;font-size:10px;">${Math.floor(d.elapsed_seconds/60)}分</span>` : '';
+            html += `<button class="cal-day status-${d.status}" onclick="showDayDetail('${d.date}')">
+                <span>${d.day}</span>
+                <span class="count">${d.done_count}/${d.task_count}</span>
+                ${minStr}
+            </button>`;
+        }
+    });
+
+    document.getElementById('calendarGrid').innerHTML = html;
+    loadStats();
+}
+
+async function loadStats() {
+    // 获取本月所有天的数据
+    const res = await fetch(`/api/history/calendar?year=${currentYear}&month=${currentMonth}&child_id=${historyChildId}`);
+    const cal = await res.json();
+
+    let completeDays = 0;
+    let totalMinutes = 0;
+    let daysWithData = 0;
+    let totalPoints = 0;
+
+    for (const d of cal.days) {
+        if (!d) continue;
+        if (d.status === 'complete') completeDays++;
+        // 获取每天详情
+        const dayRes = await fetch(`/api/history/${d.date}?child_id=${historyChildId}`);
+        const dayData = await dayRes.json();
+        if (dayData.elapsed_seconds > 0) {
+            totalMinutes += Math.floor(dayData.elapsed_seconds / 60);
+            daysWithData++;
+        }
+        totalPoints += dayData.points;
+    }
+
+    document.getElementById('statComplete').textContent = completeDays;
+    document.getElementById('statAvgTime').textContent = daysWithData > 0 ? Math.round(totalMinutes / daysWithData) : 0;
+    document.getElementById('statPoints').textContent = totalPoints;
+
+    // 近7天柱状图
+    const chartEl = document.getElementById('weekChart');
+    const labelsEl = document.getElementById('weekChartLabels');
+    let barsHtml = '';
+    let labelsHtml = '';
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().slice(0, 10);
+        const dayRes = await fetch(`/api/history/${dateStr}?child_id=${historyChildId}`);
+        const dayData = await dayRes.json();
+        const required = dayData.tasks.filter(t => t.priority === '必做');
+        const allDone = required.length > 0 && required.every(t => t.done);
+        const hasData = dayData.tasks.length > 0;
+        const h = hasData ? (allDone ? 100 : 50) : 5;
+        const color = allDone ? '#4caf50' : (hasData ? '#ffc107' : '#e0e0e0');
+        barsHtml += `<div style="flex:1;background:${color};height:${h}%;border-radius:4px 4px 0 0;min-height:5px;"></div>`;
+        labelsHtml += `<div style="flex:1;text-align:center;">${d.getDate()}</div>`;
+    }
+    chartEl.innerHTML = barsHtml;
+    labelsEl.innerHTML = labelsHtml;
+}
+
+async function showDayDetail(dateStr) {
+    const res = await fetch(`/api/history/${dateStr}?child_id=${historyChildId}`);
+    const data = await res.json();
+
+    document.getElementById('detailTitle').textContent = `${dateStr} 详情`;
+    document.getElementById('dayDetail').style.display = 'block';
+
+    let html = '';
+
+    // 基本信息
+    const starStr = '★'.repeat(data.star) + '☆'.repeat(3 - data.star);
+    const totalSec = data.elapsed_seconds || 0;
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const timeStr = h > 0 ? `${h}小时${m}分${s}秒` : (m > 0 ? `${m}分${s}秒` : `${s}秒`);
+    const moodMap = {'顺畅': '😊 顺畅', '一般': '😐 一般', '磨蹭': '😫 磨蹭'};
+    const moodStr = data.mood ? moodMap[data.mood] || data.mood : '未记录';
+    html += `<div style="margin-bottom:12px;font-size:14px;color:#666;">`;
+    html += `总用时：<strong style="color:#333;">${timeStr}</strong> | 评价：${starStr} | 状态：${moodStr} | 积分：${data.points}`;
+    html += `</div>`;
+
+    // 时间三段对比：墙钟 = 专注 + 停顿/切换
+    const focusSec = (data.tasks || []).reduce((s, t) => s + (t.duration_seconds || 0), 0);
+    const gapSec = Math.max(0, totalSec - focusSec);
+    if (totalSec > 0 || focusSec > 0) {
+        const wall = Math.max(totalSec, focusSec);
+        const fp = wall ? Math.round(focusSec / wall * 100) : 0;
+        const gp = wall ? Math.round(gapSec / wall * 100) : 0;
+        html += `<div style="margin:10px 0;padding:12px;background:#f8fafc;border-radius:10px;">
+            <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">⏱ 时间构成</div>
+            <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;background:#eee;">
+                <div style="width:${fp}%;background:#4a90d9;" title="专注"></div>
+                <div style="width:${gp}%;background:#cfd8dc;" title="停顿"></div>
+            </div>
+            <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;color:#666;flex-wrap:wrap;">
+                <span><i style="display:inline-block;width:10px;height:10px;background:#4a90d9;border-radius:2px;"></i> 专注 ${formatHistDur(focusSec)}</span>
+                <span><i style="display:inline-block;width:10px;height:10px;background:#cfd8dc;border-radius:2px;"></i> 停顿/切换 ${formatHistDur(gapSec)}</span>
+                <span>在座总时长 ${timeStr}</span>
+            </div>
+        </div>`;
+    }
+
+    // 家长备注
+    if (data.note) {
+        html += `<div style="margin-bottom:12px;padding:10px;background:#f9f9f9;border-radius:8px;font-size:14px;">`;
+        html += `<strong>家长备注：</strong>${data.note}`;
+        html += `</div>`;
+    }
+
+    // 任务列表（含评价）
+    if (data.tasks && data.tasks.length > 0) {
+        html += `<div style="margin-top:12px;">`;
+        const qMap = {1: '😫差', 2: '😐一般', 3: '😄好'};
+        data.tasks.forEach(t => {
+            const q = t.quality ? qMap[t.quality] : '';
+            const e = t.errors ? `错${t.errors}题` : '';
+            // 未完成任务显示延后按钮
+            let deferBtns = '';
+            if (!t.done) {
+                deferBtns = `<div style="margin-top:4px;display:flex;gap:6px;">
+                    <button onclick="deferHistTask('${t.id}','${dateStr}')" style="background:#9c27b0;color:white;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px;">延后</button>
+                </div>`;
+            }
+            html += `<div style="padding:8px;border-bottom:1px solid #f0f0f0;font-size:14px;">`;
+            html += `${t.done ? '✅' : '⬜'} [${t.priority}] ${t.desc}`;
+            const dur = t.duration_seconds > 0 ? formatHistDur(t.duration_seconds) : '';
+            if (q || e || dur) {
+                html += `<div style="font-size:12px;color:#999;margin-top:2px;">${q} ${e} ${dur ? '⏱ ' + dur : ''}</div>`;
+            }
+            // 附件
+            if (t.attachments && t.attachments.length > 0) {
+                html += `<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">`;
+                t.attachments.forEach(a => {
+                    const icon = a.type === 'image' ? '🖼' : a.type === 'video' ? '🎬' : a.type === 'audio' ? '🎵' : '📄';
+                    html += `<a href="/attachments/${a.filename}" target="_blank" style="font-size:12px;background:#f0f0f0;padding:2px 8px;border-radius:4px;text-decoration:none;color:#333;">${icon} ${a.desc || a.filename}</a>`;
+                });
+                html += `</div>`;
+            }
+            html += deferBtns;
+            html += `</div>`;
+        });
+        html += `</div>`;
+    } else {
+        html += `<div style="color:#999;font-size:14px;">当天没有任务</div>`;
+    }
+
+    // 积分明细
+    if (data.point_details && data.point_details.length > 0) {
+        html += `<div style="margin-top:12px;font-size:13px;color:#999;">积分明细：</div>`;
+        data.point_details.forEach(p => {
+            html += `<div style="font-size:13px;">${p.reason} +${p.points}</div>`;
+        });
+    }
+
+    document.getElementById('detailContent').innerHTML = html;
+}
+
+function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+    if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+    loadCalendar();
+}
+
+function formatHistDur(sec) {
+    sec = Math.floor(sec || 0);
+    const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+    if (h>0) return `${h}时${m}分`;
+    if (m>0) return `${m}分${s}秒`;
+    return `${s}秒`;
+}
+
+// 历史记录中延后任务（自定义N天，默认1）
+async function deferHistTask(taskId, dateStr) {
+    const input = prompt('延后几天？（默认1天）', '1');
+    if (input === null) return;
+    let days = parseInt(input, 10);
+    if (isNaN(days) || days < 1) days = 1;
+    if (!confirm(`确定把这个任务延后${days}天？`)) return;
+    await fetch(`/api/task/${taskId}/defer`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({days: days})
+    });
+    alert('已延后');
+    showDayDetail(dateStr);
+    loadCalendar();
+}
+
+// 导出CSV
+async function exportCSV() {
+    const res = await fetch(`/api/history/calendar?year=${currentYear}&month=${currentMonth}&child_id=${historyChildId}`);
+    const data = await res.json();
+    let csv = '日期,状态,任务数,完成数\n';
+    for (const day of data.days) {
+        if (!day) continue;
+        const statusMap = {complete: '全完成', partial: '部分完成', pending: '未开始', empty: '无任务'};
+        csv += `${day.date},${statusMap[day.status] || day.status},${day.task_count},${day.done_count}\n`;
+    }
+    const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `作业统计_${currentYear}年${currentMonth}月.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+loadHistoryChildren().then(() => loadCalendar());
+</script>
+
+</body>
+</html>

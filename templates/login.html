@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作业任务清单</title>
+    <link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#4A90D9">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="作业清单">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/style.css?v=20261019b">
+    <style>
+        .login-container {
+            max-width: 500px;
+            margin: 60px auto;
+            text-align: center;
+        }
+        .login-title {
+            font-size: 28px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .login-subtitle {
+            font-size: 15px;
+            color: #999;
+            margin-bottom: 40px;
+        }
+        .child-cards {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+        .child-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 160px;
+            border: 3px solid transparent;
+        }
+        .child-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            border-color: #4A90D9;
+        }
+        .child-avatar {
+            font-size: 56px;
+            margin-bottom: 12px;
+        }
+        .child-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+        .child-today {
+            font-size: 13px;
+            color: #999;
+        }
+        .admin-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 24px;
+            background: #f5f5f5;
+            color: #666;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .admin-link:hover {
+            background: #eee;
+        }
+        @media (max-width: 480px) {
+            .login-container { margin: 30px auto; }
+            .child-cards { flex-direction: column; align-items: center; gap: 14px; }
+            .child-card { width: 100%; max-width: 300px; padding: 22px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <div class="login-title">📚 作业任务清单</div>
+    <div class="login-subtitle">今天是谁写作业？</div>
+
+    <div class="child-cards" id="childCards">
+        <!-- 动态生成 -->
+    </div>
+
+    <button onclick="showAdminLogin()" class="admin-link" style="border:none;background:none;cursor:pointer;font-size:16px;">⚙ 家长后台</button>
+
+    <!-- 其他设备扫码访问 -->
+    <div id="lanBox" style="margin-top:24px;background:#f4f8fd;border:1px solid #dce7f5;border-radius:14px;padding:16px;display:none;">
+        <div style="font-size:14px;font-weight:600;color:#333;margin-bottom:8px;">📶 其他手机/平板扫码加入</div>
+        <div style="font-size:13px;color:#666;margin-bottom:10px;">需连同一个 Wi-Fi，用浏览器扫码或输入地址</div>
+        <img id="lanQr" alt="访问二维码" style="width:150px;height:150px;border-radius:8px;background:#fff;padding:6px;">
+        <div id="lanUrl" style="font-size:15px;font-weight:700;color:#2d6fb8;margin-top:10px;word-break:break-all;"></div>
+    </div>
+</div>
+
+<!-- 家长PIN密码弹窗 -->
+<div id="pinModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:22px;width:90%;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+        <h3 style="margin:0 0 14px;font-size:16px;text-align:center;">⚙ 家长后台验证</h3>
+        <div style="position:relative;">
+            <input type="password" id="pinInput" placeholder="请输入家长PIN码" inputmode="numeric"
+                   style="width:100%;padding:10px 38px 10px 12px;border:1px solid #e0e0e0;border-radius:8px;box-sizing:border-box;font-size:15px;"
+                   onkeydown="if(event.key==='Enter')submitPin()">
+            <button type="button" onclick="togglePinVisible()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;">👁</button>
+        </div>
+        <div id="pinError" style="color:#c62828;font-size:12px;margin-top:6px;min-height:16px;"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+            <button onclick="closePinModal()" style="padding:8px 16px;background:#f0f0f0;border:none;border-radius:8px;cursor:pointer;">取消</button>
+            <button onclick="submitPin()" style="padding:8px 16px;background:#4a90d9;color:#fff;border:none;border-radius:8px;cursor:pointer;">确定</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAdminLogin() {
+    document.getElementById('pinError').textContent = '';
+    const inp = document.getElementById('pinInput');
+    inp.value = '';
+    inp.type = 'password';
+    document.getElementById('pinModal').style.display = 'flex';
+    setTimeout(() => inp.focus(), 50);
+}
+function closePinModal() {
+    document.getElementById('pinModal').style.display = 'none';
+}
+function togglePinVisible() {
+    const inp = document.getElementById('pinInput');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+function submitPin() {
+    const pin = document.getElementById('pinInput').value.trim();
+    if (!pin) { document.getElementById('pinError').textContent = '请输入PIN码'; return; }
+    fetch('/api/admin/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({pin: pin})
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            window.location.href = '/admin';
+        } else {
+            document.getElementById('pinError').textContent = 'PIN码错误，请重试';
+            document.getElementById('pinInput').select();
+        }
+    });
+}
+
+async function loadChildren() {
+    const res = await fetch('/api/children');
+    const data = await res.json();
+    const container = document.getElementById('childCards');
+    container.innerHTML = '';
+
+    for (const child of data.children) {
+        const card = document.createElement('div');
+        card.className = 'child-card';
+        let avatar;
+        if (child.avatar && child.avatar.startsWith('sticker:')) {
+            avatar = `<span style="font-size:52px;line-height:1;">${child.avatar.slice(8)}</span>`;
+        } else if (child.avatar) {
+            avatar = `<img src="/attachments/${child.avatar}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;">`;
+        } else {
+            avatar = '👦';
+        }
+        card.innerHTML = `
+            <div class="child-avatar">${avatar}</div>
+            <div class="child-name">${child.name}</div>
+            <div class="child-today">点击进入 →</div>
+        `;
+        card.onclick = () => login(child.id, child.name);
+        container.appendChild(card);
+    }
+}
+
+async function login(childId, name) {
+    await fetch('/api/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({child_id: childId})
+    });
+    window.location.href = '/';
+}
+
+async function loadLanInfo() {
+    try {
+        const res = await fetch('/api/server/info');
+        const data = await res.json();
+        if (!data.lan_url) return;
+        const box = document.getElementById('lanBox');
+        box.style.display = 'block';
+        document.getElementById('lanUrl').textContent = data.lan_url;
+        document.getElementById('lanQr').src =
+            'https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=4&data=' +
+            encodeURIComponent(data.lan_url);
+    } catch (e) { /* 无局域网IP则隐藏 */ }
+}
+
+loadChildren();
+loadLanInfo();
+</script>
+
+</body>
+</html>

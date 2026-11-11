@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家长后台</title>
+    <link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#4A90D9">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="作业清单">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/style.css?v=20261019b">
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>⚙ 家长后台</h1>
+    <button class="admin-entry" onclick="window.location.href='/'">🏠</button>
+</div>
+
+<div class="main-content">
+
+    <!-- 当前操作对象提示 -->
+    <div class="admin-section" style="background:#fff3cd;border:1px solid #ffeaa7;padding:10px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div style="font-size:14px;color:#856404;">
+                当前操作对象：<span id="currentAdminChild" style="color:#d63031;font-weight:700;font-size:16px;">宝贝</span>
+            </div>
+            <select id="adminChildSelector" onchange="switchAdminChild()" style="padding:6px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;">
+            </select>
+        </div>
+    </div>
+
+    <!-- 标签页导航 -->
+    <div class="tab-bar" style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #eee;overflow-x:auto;scrollbar-width:none;">
+        <button class="tab-btn active" onclick="switchTab('tasks')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#4a90d9;border-bottom:2px solid #4a90d9;margin-bottom:-2px;">📋 今日任务</button>
+        <button class="tab-btn" onclick="switchTab('children')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px;">👶 孩子管理</button>
+        <button class="tab-btn" onclick="switchTab('week')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px;">📅 周计划</button>
+        <button class="tab-btn" onclick="switchTab('mistakes')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px;">❓ 错题库</button>
+        <button class="tab-btn" onclick="switchTab('settings')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px;">⚙️ 设置</button>
+    </div>
+
+    <!-- Tab 1: 今日任务 -->
+    <div id="tab-tasks">
+        <!-- 任务录入 -->
+        <div class="admin-section">
+            <h3>📝 录入今日作业</h3>
+            <p style="font-size:13px;color:#999;margin-bottom:8px;">粘贴AI整理好的任务文本（格式：【日期】【科目】- [必做] 任务描述）</p>
+            <textarea id="importText" placeholder="【日期】2026-10-16
+【语文】
+- [必做] 拼音本书写（附图：书写内容）
+【数学】
+- [选做] 数学习题（附文件：习题PDF）"></textarea>
+            <br>
+            <div style="margin:8px 0;display:flex;align-items:center;gap:8px;font-size:13px;color:#666;">
+                布置到日期：
+                <input type="date" id="importDate" style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;">
+                <span style="font-size:12px;color:#999;">默认今天；可提前给未来某天布置</span>
+            </div>
+            <button class="btn-primary" onclick="previewImport()">预览并导入</button>
+
+            <!-- AI解析提示词（折叠展示） -->
+            <div style="margin-top:16px;border-top:1px solid #eee;padding-top:12px;">
+                <div onclick="togglePrompt()" style="cursor:pointer;font-size:13px;color:#4a90d9;user-select:none;">
+                    📋 点击展开：AI作业解析提示词（复制给AI用）
+                </div>
+                <div id="promptContent" style="display:none;margin-top:8px;background:#f8f9fa;padding:12px;border-radius:8px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">
+你是一个小学作业任务清单整理助手。请把老师布置的作业整理成以下固定格式，方便导入到作业管理系统。
+
+【输出格式要求】
+1. 第一行写【日期】YYYY-MM-DD（如果老师没说日期，默认今天）
+2. 每个科目用【科目名】开头，如【语文】【数学】【英语】
+3. 每个任务用 - [必做] 或 - [选做] 开头
+   - 老师明确要求完成的是"必做"
+   - 自愿完成、选做的是"选做"
+4. 任务描述要简洁明了，包含关键要求
+5. 如果作业提到"见图片/附图"，在描述后面加（附图：说明）
+6. 如果作业提到"见视频/视频号/跟读"，加（附视频：说明）
+7. 如果作业提到"见文件/PDF/习题"，加（附文件：说明）
+8. 如果作业提到"见音频/录音"，加（附音频：说明）
+
+【注意事项】
+- 不要自己添加老师没说的内容
+- 不要遗漏任何作业项
+- 一个作业项拆成一条，不要合并
+- 只输出整理后的清单，不要解释
+
+【示例】
+输入：一、语文：1.写拼音本z/c/s各一行 2.练拼读（见视频）
+输出：
+【日期】2026-10-16
+【语文】
+- [必做] 拼音本书写：声母z、c、s各一行
+- [必做] 练拼读练习（附视频：例读示范）
+                </div>
+            </div>
+        </div>
+
+        <!-- 手动添加任务 -->
+        <div class="admin-section">
+            <h3>✏️ 手动添加任务</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <select id="manualSubject" style="padding:8px;border:1px solid #e0e0e0;border-radius:6px;">
+                    <option value="语文">语文</option>
+                    <option value="数学">数学</option>
+                    <option value="英语">英语</option>
+                    <option value="其他">其他</option>
+                </select>
+                <input type="text" id="manualDesc" placeholder="任务描述" style="flex:1;padding:8px;border:1px solid #e0e0e0;border-radius:6px;min-width:200px;">
+                <select id="manualPriority" style="padding:8px;border:1px solid #e0e0e0;border-radius:6px;">
+                    <option value="必做">必做</option>
+                    <option value="选做">选做</option>
+                </select>
+                <button class="btn-primary" onclick="addManualTask()">添加</button>
+            </div>
+            <div style="margin-top:10px;">
+                <div style="font-size:13px;color:#999;margin-bottom:6px;">⚡ 常用模板（点击直接添加）：</div>
+                <div id="templateList" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+            </div>
+        </div>
+
+        <!-- 今日任务管理 -->
+        <div class="admin-section">
+            <h3>📋 今日任务管理</h3>
+            <div id="adminTaskList"></div>
+            <div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e0e0e0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <label style="font-size:13px;color:#666;">重置计时日期：</label>
+                <input type="date" id="resetTimerDate" style="padding:6px 10px;border:1px solid #d6e0ee;border-radius:6px;font-size:14px;">
+                <button class="btn-secondary" style="font-size:12px;padding:6px 12px;background:#ffebee;color:#c62828;border:1px solid #ffcdd2;" onclick="resetTodayTimer()">♻️ 重置该日计时</button>
+            </div>
+            <div style="font-size:12px;color:#999;margin-top:6px;">重置会清零所选日期的墙钟、各任务专注时长和习惯倒计时，<strong>不会</strong>删除任务、完成打勾、评价和积分。</div>
+        </div>
+
+        <!-- 星级评价 -->
+        <div class="admin-section">
+            <h3>⭐ 今日作业评价</h3>
+            <div class="star-rating" id="starRating">
+                <span class="star" data-val="1" onclick="setStar(1)">★</span>
+                <span class="star" data-val="2" onclick="setStar(2)">★</span>
+                <span class="star" data-val="3" onclick="setStar(3)">★</span>
+            </div>
+            <div style="margin-top:8px;font-size:13px;color:#999;" id="starHint">点击星星给今天作业打分</div>
+
+            <div style="margin-top:16px;">
+                <label style="font-size:13px;color:#666;">今天写作业状态：</label>
+                <div style="margin-top:6px;display:flex;gap:8px;">
+                    <label style="font-size:14px;cursor:pointer;"><input type="radio" name="mood" value="顺畅"> 😊 顺畅</label>
+                    <label style="font-size:14px;cursor:pointer;"><input type="radio" name="mood" value="一般"> 😐 一般</label>
+                    <label style="font-size:14px;cursor:pointer;"><input type="radio" name="mood" value="磨蹭"> 😫 磨蹭</label>
+                </div>
+            </div>
+
+            <div style="margin-top:16px;">
+                <label style="font-size:13px;color:#666;">家长备注（哪里好/哪里需要加强）：</label>
+                <textarea id="noteInput" placeholder="如：拼音书写工整，但拼读还不够熟练" style="margin-top:6px;min-height:60px;"></textarea>
+            </div>
+
+            <button class="btn-primary" onclick="saveRating()">保存评价</button>
+        </div>
+    </div>
+
+    <!-- Tab: 周计划 -->
+    <div id="tab-week" style="display:none;">
+        <div class="admin-section">
+            <h3>📅 本周计划（提前布置，当天自动显示）</h3>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+                <button class="btn-secondary" onclick="shiftWeek(-1)">◀ 上一周</button>
+                <strong id="weekRange" style="flex:1;text-align:center;"></strong>
+                <button class="btn-secondary" onclick="shiftWeek(1)">下一周 ▶</button>
+                <button class="btn-secondary" onclick="loadWeek(0)">回到本周</button>
+            </div>
+            <div id="weekList"></div>
+        </div>
+    </div>
+
+    <!-- Tab: 错题库 -->
+    <div id="tab-mistakes" style="display:none;">
+        <div class="admin-section">
+            <h3>❓ 错题库（记录错题，按计划复习，掌握后标记）</h3>
+            <div id="mkStats" style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px;margin-bottom:12px;padding:8px 12px;background:#f8f9fa;border-radius:8px;"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+                <input type="date" id="mk_date" style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;">
+                <input type="text" id="mk_subject" placeholder="科目（语文/数学）" style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;width:110px;">
+                <input type="text" id="mk_type" placeholder="题型（如：拼音/口算/应用题）" style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;width:170px;">
+            </div>
+            <textarea id="mk_content" placeholder="错题内容 / 题目（可抄题或粘贴）" style="width:100%;min-height:60px;padding:8px;border:1px solid #e0e0e0;border-radius:6px;"></textarea>
+            <input type="text" id="mk_note" placeholder="错因/正确思路（选填）" style="width:100%;margin-top:6px;padding:6px;border:1px solid #e0e0e0;border-radius:6px;">
+            <div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <label style="font-size:13px;color:#666;cursor:pointer;">
+                    📷 题目照片
+                    <input type="file" accept="image/*" id="mk_image_file" style="display:none;" onchange="uploadMistakeImage(this)">
+                </label>
+                <span id="mk_image_preview"></span>
+                <button class="btn-primary" onclick="addMistake()">添加错题</button>
+                <button class="btn-secondary" onclick="exportReviewSheet()">导出复习卷（未掌握）</button>
+            </div>
+        </div>
+        <div class="admin-section">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+                <label style="font-size:13px;color:#666;">科目筛选：</label>
+                <select id="mk_filter" onchange="loadMistakes()" style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;">
+                    <option value="">全部</option>
+                </select>
+                <span style="font-size:12px;color:#999;">🔴 今日待复习</span>
+            </div>
+            <div id="mistakeList"></div>
+        </div>
+    </div>
+
+    <!-- Tab 2: 孩子管理 -->
+    <div id="tab-children" style="display:none;">
+        <div class="admin-section">
+            <h3>👶 孩子管理</h3>
+            <div style="display:flex;gap:8px;margin-bottom:16px;">
+                <input type="text" id="newChildName" placeholder="新孩子名字" style="flex:1;padding:8px;border:1px solid #e0e0e0;border-radius:6px;">
+                <button class="btn-secondary" onclick="addChild()">添加孩子</button>
+            </div>
+            <div id="childManageList"></div>
+        </div>
+    </div>
+
+    <!-- Tab 3: 设置 -->
+    <div id="tab-settings" style="display:none;">
+        <!-- 习惯任务管理 -->
+        <div class="admin-section">
+            <h3>📋 习惯任务管理</h3>
+            <div id="habitConfigList"></div>
+            <div style="margin-top:10px;display:flex;gap:8px;">
+                <input type="text" id="newHabitName" placeholder="任务名称" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+                <input type="number" id="newHabitMinutes" placeholder="分钟(0=检查项)" style="width:120px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+                <button class="btn-primary" style="margin-top:0;" onclick="addHabit()">添加</button>
+            </div>
+            <button class="btn-primary" onclick="saveHabits()">保存习惯任务</button>
+        </div>
+
+        <!-- 积分规则配置 -->
+        <div class="admin-section">
+            <h3>💰 积分规则配置</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;">
+                <label>必做全完成得分：<input type="number" id="cfg_base" style="width:70px;padding:4px;border:1px solid #ddd;border-radius:4px;margin-left:4px;"></label>
+                <label>3星评价加分：<input type="number" id="cfg_star3" style="width:70px;padding:4px;border:1px solid #ddd;border-radius:4px;margin-left:4px;"></label>
+                <label>2星评价加分：<input type="number" id="cfg_star2" style="width:70px;padding:4px;border:1px solid #ddd;border-radius:4px;margin-left:4px;"></label>
+                <label>完成选做题加分：<input type="number" id="cfg_optional" style="width:70px;padding:4px;border:1px solid #ddd;border-radius:4px;margin-left:4px;"></label>
+                <label>每个习惯任务得分：<input type="number" id="cfg_habit" style="width:70px;padding:4px;border:1px solid #ddd;border-radius:4px;margin-left:4px;"></label>
+                <label>全部习惯完成额外：<input type="number" id="cfg_habit_all" style="width:70px;padding:4px;border:1px solid #ddd;border-radius:4px;margin-left:4px;"></label>
+                <label>连续7天奖励：<input type="number" id="cfg_streak7" style="width:70px;padding:4px;border:1px solid #ddd;border-radius:4px;margin-left:4px;"></label>
+                <label>连续30天奖励：<input type="number" id="cfg_streak30" style="width:70px;padding:4px;border:1px solid #ddd;border-radius:4px;margin-left:4px;"></label>
+            </div>
+            <button class="btn-primary" onclick="saveSettings()">保存积分规则</button>
+        </div>
+
+        <!-- 兑换奖励配置 -->
+        <div class="admin-section">
+            <h3>🎁 兑换奖励配置</h3>
+            <div id="rewardConfigList"></div>
+            <div style="margin-top:10px;display:flex;gap:8px;">
+                <input type="text" id="newRewardName" placeholder="奖励名称" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+                <input type="number" id="newRewardPoints" placeholder="所需积分" style="width:100px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">
+                <button class="btn-primary" style="margin-top:0;" onclick="addReward()">添加</button>
+            </div>
+            <button class="btn-primary" onclick="saveRewards()">保存兑换规则</button>
+        </div>
+
+        <!-- 系统设置 -->
+        <div class="admin-section">
+            <h3>🔧 系统设置</h3>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:13px;color:#666;">语音播报语速：<span id="speechRateVal" style="font-weight:600;color:#4a90d9;">0.9</span>（慢0.5 ~ 快1.5，儿童建议0.8~1.0）</label>
+                <input type="range" id="cfg_speech_rate" min="0.5" max="1.5" step="0.1" value="0.9"
+                       oninput="document.getElementById('speechRateVal').textContent=this.value"
+                       style="width:100%;margin-top:6px;">
+                <button class="btn-secondary" style="margin-top:6px;" onclick="saveSpeechRate()">保存语速</button>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:13px;color:#666;">修改PIN码：</label>
+                <input type="password" id="newPin" placeholder="输入新PIN码" style="margin-top:4px;">
+            </div>
+            <button class="btn-primary" onclick="changePin()">修改PIN码</button>
+            <button class="btn-secondary" onclick="exportBackup()">导出数据备份</button>
+
+            <!-- 服务连接与关闭 -->
+            <div style="margin-top:18px;padding-top:14px;border-top:1px solid #eee;">
+                <h3 style="font-size:15px;margin-bottom:8px;">🔌 服务连接（其他设备访问）</h3>
+                <div id="adminLanBox" style="font-size:13px;color:#666;">读取中…</div>
+                <button class="btn-secondary" style="background:#ffebee;color:#c62828;border:1px solid #ffcdd2;" onclick="stopServer()">⏻ 关闭服务（完成作业后可关，数据已保存）</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- 通用任务编辑弹窗 -->
+<div id="taskEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:20px;width:92%;max-width:460px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+        <h3 style="margin:0 0 14px;font-size:16px;">✏️ 编辑任务</h3>
+        <label style="font-size:13px;color:#666;">科目</label>
+        <input id="te_subject" style="width:100%;margin:4px 0 12px;padding:8px;border:1px solid #e0e0e0;border-radius:6px;box-sizing:border-box;">
+        <label style="font-size:13px;color:#666;">任务描述</label>
+        <textarea id="te_desc" style="width:100%;min-height:70px;margin:4px 0 12px;padding:8px;border:1px solid #e0e0e0;border-radius:6px;box-sizing:border-box;"></textarea>
+        <label style="font-size:13px;color:#666;display:block;margin-bottom:10px;">
+            <input type="radio" name="te_pri" value="必做" checked> 必做
+            <input type="radio" name="te_pri" value="选做" style="margin-left:14px;"> 选做
+        </label>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn-secondary" onclick="closeTaskEdit()">取消</button>
+            <button class="btn-primary" onclick="saveTaskEdit()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 贴纸选择弹窗 -->
+<div id="stickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:20px;width:92%;max-width:380px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+        <h3 style="margin:0 0 14px;font-size:16px;">🎨 选择贴纸头像</h3>
+        <div id="stickerGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+            <button class="btn-secondary" onclick="closeStickerPicker()">取消</button>
+        </div>
+    </div>
+</div>
+
+<div class="bottom-nav">
+    <a href="/"><span class="icon">📋</span>今日</a>
+    <a href="/rewards"><span class="icon">🏆</span>奖励</a>
+    <a href="/history"><span class="icon">📅</span>历史</a>
+</div>
+
+<script>
+let currentStar = 0;
+
+let rewardsConfig = [];
+let adminChildId = 1;
+let adminChildName = '';
+
+// 标签页切换
+function switchTab(tabName) {
+    // 隐藏所有tab
+    document.getElementById('tab-tasks').style.display = 'none';
+    document.getElementById('tab-children').style.display = 'none';
+    document.getElementById('tab-settings').style.display = 'none';
+    document.getElementById('tab-week').style.display = 'none';
+    document.getElementById('tab-mistakes').style.display = 'none';
+    // 显示选中的tab
+    document.getElementById('tab-' + tabName).style.display = 'block';
+    if (tabName === 'week') loadWeek(0);
+    if (tabName === 'mistakes') loadMistakes();
+    // 更新按钮样式
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.color = '#666';
+        btn.style.borderBottom = '2px solid transparent';
+    });
+    event.target.classList.add('active');
+    event.target.style.color = '#4a90d9';
+    event.target.style.borderBottom = '2px solid #4a90d9';
+}
+
+// 折叠/展开AI提示词
+function togglePrompt() {
+    const el = document.getElementById('promptContent');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ========== 孩子管理 ==========
+async function loadAdminChildren() {
+    const res = await fetch('/api/children');
+    const data = await res.json();
+    const sel = document.getElementById('adminChildSelector');
+    sel.innerHTML = '';
+    data.children.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        if (c.id === adminChildId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    if (data.children.length > 0) {
+        // 只在adminChildId未初始化时才默认选第一个
+        if (!adminChildId || !data.children.find(c => c.id === adminChildId)) {
+            adminChildId = data.children[0].id;
+            sel.value = adminChildId;
+        }
+        const current = data.children.find(c => c.id === adminChildId);
+        if (current) {
+            adminChildName = current.name;
+            document.getElementById('currentAdminChild').textContent = adminChildName;
+        }
+    }
+    renderChildManageList(data.children);
+}
+
+// ========== 手动添加任务 ==========
+// 常用作业模板（内置，可按需扩展）
+const TASK_TEMPLATES = [
+    {subject:'语文', desc:'阅读课外书20分钟', priority:'必做'},
+    {subject:'语文', desc:'练字/抄写生字各一行', priority:'必做'},
+    {subject:'语文', desc:'预习明天课文', priority:'选做'},
+    {subject:'数学', desc:'口算练习20题', priority:'必做'},
+    {subject:'数学', desc:'复习当天错题', priority:'选做'},
+    {subject:'英语', desc:'听读课文10分钟', priority:'选做'},
+    {subject:'其他', desc:'复习今天所学内容', priority:'选做'},
+];
+
+function renderTemplates() {
+    const box = document.getElementById('templateList');
+    box.innerHTML = TASK_TEMPLATES.map((t, i) =>
+        `<button style="background:#f0f4f8;border:1px solid #d6e0ee;color:#335;font-size:12px;padding:5px 10px;border-radius:16px;cursor:pointer;"
+                 onclick="applyTemplate(${i})">${t.desc}</button>`
+    ).join('');
+}
+
+function applyTemplate(i) {
+    const t = TASK_TEMPLATES[i];
+    submitManualTask(t.subject, t.desc, t.priority);
+}
+
+async function submitManualTask(subject, desc, priority) {
+    subject = (subject || document.getElementById('manualSubject').value).trim();
+    desc = (desc || document.getElementById('manualDesc').value).trim();
+    priority = priority || document.getElementById('manualPriority').value;
+    if (!desc) return alert('请输入任务描述');
+    await fetch('/api/task/add?child_id=' + adminChildId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({subject: subject || '其他', desc: desc, priority: priority})
+    });
+    document.getElementById('manualDesc').value = '';
+    loadAdminTasks();
+}
+
+async function addManualTask() {
+    await submitManualTask();
+}
+
+function switchAdminChild() {
+    adminChildId = parseInt(document.getElementById('adminChildSelector').value);
+    adminChildName = document.getElementById('adminChildSelector').options[document.getElementById('adminChildSelector').selectedIndex].textContent;
+    document.getElementById('currentAdminChild').textContent = adminChildName;
+    loadAdminTasks();
+    loadSettings();
+    loadHabits();
+}
+
+async function addChild() {
+    const name = document.getElementById('newChildName').value.trim();
+    if (!name) return alert('请输入名字');
+    await fetch('/api/children/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: name})
+    });
+    document.getElementById('newChildName').value = '';
+    await loadAdminChildren();
+    alert('添加成功');
+}
+
+// 头像渲染：sticker: 开头显示emoji，否则显示图片
+function avatarMarkup(c, size) {
+    const s = size || 30;
+    if (c.avatar && c.avatar.startsWith('sticker:')) {
+        return `<span style="font-size:${s}px;line-height:1;">${c.avatar.slice(8)}</span>`;
+    }
+    if (c.avatar) {
+        return `<img src="/attachments/${c.avatar}" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;">`;
+    }
+    return `<span style="font-size:${s}px;line-height:1;">👶</span>`;
+}
+
+// 渲染孩子管理列表
+function renderChildManageList(children) {
+    const container = document.getElementById('childManageList');
+    container.innerHTML = '<div style="font-size:13px;color:#666;margin-bottom:6px;">孩子列表（可删除/改名/上传头像/选贴纸）：</div>';
+    children.forEach(c => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;';
+        row.innerHTML = `
+            <span>${avatarMarkup(c, 28)}</span>
+            <span style="font-weight:600;min-width:60px;">${c.name}</span>
+            <button onclick="renameChild(${c.id}, '${c.name}')" style="background:#eee;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px;">改名</button>
+            <label style="background:#eee;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px;">
+                上传头像
+                <input type="file" accept="image/*" style="display:none;" onchange="uploadAvatar(${c.id}, this.files[0])">
+            </label>
+            <button onclick="openStickerPicker(${c.id})" style="background:#eee;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px;border:none;">🎨 贴纸</button>
+            <button onclick="deleteChild(${c.id}, '${c.name}')" style="background:#ff6b6b;color:white;border:none;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px;">删除</button>
+        `;
+        container.appendChild(row);
+    });
+}
+
+// 贴纸选择
+const STICKERS = ['👦','👧','🐶','🐱','🐼','🦊','🐰','🐻','🦁','🐯','🐨','🐸','🦄','🐝','🐞','⭐','🚀','⚽','🎨','🚗'];
+let stickerTargetId = null;
+function openStickerPicker(id) {
+    stickerTargetId = id;
+    const box = document.getElementById('stickerGrid');
+    box.innerHTML = STICKERS.map(e =>
+        `<button style="font-size:30px;padding:6px;border:1px solid #e0e0e0;border-radius:10px;background:#fff;cursor:pointer;" onclick="pickSticker('${e}')">${e}</button>`
+    ).join('');
+    document.getElementById('stickerModal').style.display = 'flex';
+}
+function closeStickerPicker() {
+    document.getElementById('stickerModal').style.display = 'none';
+    stickerTargetId = null;
+}
+async function pickSticker(emoji) {
+    await fetch(`/api/children/${stickerTargetId}/sticker`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({emoji})
+    });
+    closeStickerPicker();
+    await loadAdminChildren();
+}
+
+async function deleteChild(id, name) {
+    if (!confirm(`确定删除【${name}】？该孩子的所有数据都会被删除！`)) return;
+    await fetch(`/api/children/${id}`, {method: 'DELETE'});
+    await loadAdminChildren();
+    loadAdminTasks();
+}
+
+async function renameChild(id, oldName) {
+    const newName = prompt('请输入新名字：', oldName);
+    if (!newName || newName === oldName) return;
+    await fetch(`/api/children/${id}/rename`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: newName})
+    });
+    await loadAdminChildren();
+}
+
+async function uploadAvatar(id, file) {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('avatar', file);
+    await fetch(`/api/children/${id}/avatar`, {method: 'POST', body: formData});
+    await loadAdminChildren();
+}
+
+// 加载兑换奖励配置
+async function loadRewards() {
+    const res = await fetch('/api/settings?child_id=' + adminChildId);
+    const s = await res.json();
+    rewardsConfig = s.rewards || [];
+    renderRewardConfig();
+}
+
+function renderRewardConfig() {
+    const el = document.getElementById('rewardConfigList');
+    let html = '';
+    rewardsConfig.forEach((r, i) => {
+        html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;">`;
+        html += `<input type="text" value="${r.name}" onchange="rewardsConfig[${i}].name=this.value" style="flex:1;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:13px;">`;
+        html += `<input type="number" value="${r.points}" onchange="rewardsConfig[${i}].points=parseInt(this.value)" style="width:80px;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:13px;">`;
+        html += `<span style="color:#999;">分</span>`;
+        html += `<button onclick="rewardsConfig.splice(${i},1);renderRewardConfig()" style="background:#eee;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;">✕</button>`;
+        html += `</div>`;
+    });
+    el.innerHTML = html;
+}
+
+function addReward() {
+    const name = document.getElementById('newRewardName').value.trim();
+    const points = parseInt(document.getElementById('newRewardPoints').value);
+    if (!name || !points) return;
+    rewardsConfig.push({id: 'r' + Date.now(), name, points});
+    document.getElementById('newRewardName').value = '';
+    document.getElementById('newRewardPoints').value = '';
+    renderRewardConfig();
+}
+
+async function saveRewards() {
+    await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({rewards: rewardsConfig})
+    });
+    alert('兑换规则已保存');
+}
+
+let habitsConfig = [];
+
+async function loadHabits() {
+    const res = await fetch('/api/settings?child_id=' + adminChildId);
+    const s = await res.json();
+    // 习惯任务存在habits.json里，直接获取
+    const hRes = await fetch('/api/today?child_id=' + adminChildId);
+    const hData = await hRes.json();
+    habitsConfig = hData.habits || [];
+    renderHabitConfig();
+}
+
+function renderHabitConfig() {
+    const el = document.getElementById('habitConfigList');
+    let html = '';
+    habitsConfig.forEach((h, i) => {
+        html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;flex-wrap:wrap;">`;
+        html += `<input type="text" value="${h.name}" onchange="habitsConfig[${i}].name=this.value" style="flex:1;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:13px;min-width:100px;">`;
+        html += `<input type="number" value="${h.minutes}" onchange="habitsConfig[${i}].minutes=parseInt(this.value)" style="width:70px;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:13px;" title="分钟，0=检查项">`;
+        html += `<select onchange="habitsConfig[${i}].days=this.value" style="padding:4px;border:1px solid #ddd;border-radius:4px;font-size:13px;">`;
+        html += `<option value="all" ${h.days==='all'?'selected':''}>每天</option>`;
+        html += `<option value="weekday" ${h.days==='weekday'?'selected':''}>仅工作日</option>`;
+        html += `<option value="weekend" ${h.days==='weekend'?'selected':''}>仅周末</option>`;
+        html += `</select>`;
+        html += `<button onclick="habitsConfig.splice(${i},1);renderHabitConfig()" style="background:#eee;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;">✕</button>`;
+        html += `</div>`;
+    });
+    el.innerHTML = html;
+}
+
+function addHabit() {
+    const name = document.getElementById('newHabitName').value.trim();
+    const minutes = parseInt(document.getElementById('newHabitMinutes').value) || 0;
+    if (!name) return;
+    habitsConfig.push({id: 'h' + Date.now(), name, minutes, enabled: true, days: 'all'});
+    document.getElementById('newHabitName').value = '';
+    document.getElementById('newHabitMinutes').value = '';
+    renderHabitConfig();
+}
+
+async function saveHabits() {
+    await fetch('/api/habits?child_id=' + adminChildId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({habits: habitsConfig})
+    });
+    alert('习惯任务已保存');
+}
+
+// 拖拽排序
+let dragIdx = null;
+
+function dragTask(e, idx) {
+    dragIdx = idx;
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function allowDrop(e) {
+    e.preventDefault();
+}
+
+function dropTask(e, targetIdx) {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === targetIdx) return;
+    // 重新排序任务
+    const taskEls = document.querySelectorAll('#adminTaskList [data-task-id]');
+    const tasks = Array.from(taskEls);
+    const moved = tasks.splice(dragIdx, 1)[0];
+    tasks.splice(targetIdx, 0, moved);
+    // 重新渲染顺序（后端暂不持久化，刷新后恢复；后续可加保存接口）
+    // 这里仅做前端排序展示
+    const container = document.getElementById('adminTaskList');
+    tasks.forEach(t => container.appendChild(t));
+    dragIdx = null;
+}
+
+// ========== 周计划 ==========
+let weekOffset = 0;
+
+function isoDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function todayISO() { return isoDate(new Date()); }
+
+async function loadWeek(offset) {
+    weekOffset = offset;
+    // 计算目标周一
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - now.getDay() + 1 + offset*7);
+    const res = await fetch('/api/week?child_id=' + adminChildId + '&date=' + isoDate(monday));
+    const data = await res.json();
+    window._weekTaskMap = {};
+    data.days.forEach(d => d.tasks.forEach(t => window._weekTaskMap[t.id] = t));
+    document.getElementById('weekRange').textContent = data.monday + ' 起的一周';
+    const box = document.getElementById('weekList');
+    let html = '';
+    data.days.forEach(day => {
+        const pct = day.total ? Math.round(day.done_count/day.total*100) : 0;
+        const todayCls = day.is_today ? 'style="border:2px solid #4a90d9;"' : '';
+        html += `<div class="admin-section" ${todayCls} style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <strong>${day.weekday} ${day.date}${day.is_today ? '（今天）' : ''}</strong>
+                <span style="font-size:13px;color:#666;">${day.done_count}/${day.total} · ${pct}%</span>
+            </div>
+            <div style="margin-top:8px;">`;
+        day.tasks.forEach(t => {
+            const tag = t.priority === '选做'
+                ? '<span style="background:#fff3e0;color:#e65100;font-size:11px;padding:1px 6px;border-radius:4px;margin-right:6px;">选做</span>'
+                : '<span style="background:#e3f2fd;color:#1565c0;font-size:11px;padding:1px 6px;border-radius:4px;margin-right:6px;">必做</span>';
+            html += `<div style="padding:4px 0;font-size:13px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                <div>${t.done ? '✅' : '⬜'} ${tag}[${t.subject}] ${t.desc}</div>
+                <div style="display:flex;gap:4px;flex-shrink:0;">
+                    <button style="background:#f0f4f8;border:none;font-size:12px;padding:3px 8px;border-radius:6px;cursor:pointer;" onclick="editWeekTask('${t.id}')">✏️ 编辑</button>
+                    <button style="background:#ffebee;border:none;color:#c62828;font-size:12px;padding:3px 8px;border-radius:6px;cursor:pointer;" onclick="delWeekTask('${t.id}')">🗑</button>
+                </div>
+            </div>`;
+        });
+        if (day.tasks.length === 0) html += `<div style="font-size:12px;color:#bbb;padding:4px 0;">暂无任务</div>`;
+        html += `</div>
+            <details style="margin-top:8px;">
+                <summary style="font-size:13px;color:#4a90d9;cursor:pointer;">＋ 给这一天添加任务</summary>
+                <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                    <input type="text" id="wsubj_${day.date}" placeholder="科目" style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;width:80px;">
+                    <input type="text" id="wdesc_${day.date}" placeholder="任务描述" style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;flex:1;min-width:160px;">
+                    <select id="wpri_${day.date}" style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;">
+                        <option>必做</option><option>选做</option>
+                    </select>
+                    <button class="btn-secondary" onclick="addWeekTask('${day.date}')">添加</button>
+                </div>
+            </details>
+        </div>`;
+    });
+    box.innerHTML = html;
+}
+
+function shiftWeek(n) { loadWeek(weekOffset + n); }
+
+async function addWeekTask(date) {
+    const subject = document.getElementById('wsubj_' + date).value.trim() || '其他';
+    const desc = document.getElementById('wdesc_' + date).value.trim();
+    const priority = document.getElementById('wpri_' + date).value;
+    if (!desc) { alert('请填写任务描述'); return; }
+    await fetch('/api/task/add?child_id=' + adminChildId, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({subject, desc, priority, date})
+    });
+    loadWeek(weekOffset);
+}
+
+// 通用任务编辑弹窗
+let teCallback = null;
+function openTaskEdit({subject, desc, priority}, onSave) {
+    document.getElementById('te_subject').value = subject || '';
+    document.getElementById('te_desc').value = desc || '';
+    document.querySelectorAll('input[name=te_pri]').forEach(r => r.checked = (r.value === (priority || '必做')));
+    teCallback = onSave;
+    document.getElementById('taskEditModal').style.display = 'flex';
+}
+function closeTaskEdit() {
+    document.getElementById('taskEditModal').style.display = 'none';
+    teCallback = null;
+}
+function saveTaskEdit() {
+    const subject = document.getElementById('te_subject').value.trim() || '其他';
+    const desc = document.getElementById('te_desc').value.trim();
+    const priority = document.querySelector('input[name=te_pri]:checked').value;
+    if (!desc) { alert('请填写任务描述'); return; }
+    const cb = teCallback;
+    closeTaskEdit();
+    if (cb) cb(subject, desc, priority);
+}
+
+function editWeekTask(id) {
+    const t = (window._weekTaskMap || {})[id];
+    if (!t) return;
+    openTaskEdit(t, async (subject, desc, priority) => {
+        await fetch('/api/task/' + id, {
+            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({subject, desc, priority})
+        });
+        loadWeek(weekOffset);
+    });
+}
+
+async function delWeekTask(id) {
+    if (!confirm('删除这个任务？')) return;
+    await fetch('/api/task/' + id, {method: 'DELETE'});
+    loadWeek(weekOffset);
+}
+
+// ========== 错题库 ==========
+let pendingMkImage = '';
+const REVIEW_GAP = [1, 3, 7, 15]; // 复习间隔天数
+
+function mkNextReview(retryCount) {
+    const gap = REVIEW_GAP[retryCount];
+    if (!gap) return '';
+    const d = new Date(); d.setDate(d.getDate() + gap);
+    return isoDate(d);
+}
+
+async function uploadMistakeImage(input) {
+    const f = input.files[0];
+    if (!f) return;
+    const fd = new FormData();
+    fd.append('image', f);
+    const res = await fetch('/api/mistake/upload', {method:'POST', body: fd});
+    const data = await res.json();
+    if (data.success) {
+        pendingMkImage = data.image;
+        document.getElementById('mk_image_preview').innerHTML =
+            `<img src="/attachments/${data.image}" style="height:42px;border-radius:6px;border:1px solid #ddd;">
+             <button style="background:none;border:none;color:#c62828;cursor:pointer;font-size:12px;" onclick="clearMkImage()">✕</button>`;
+    } else {
+        alert(data.error || '图片上传失败');
+    }
+}
+function clearMkImage() {
+    pendingMkImage = '';
+    document.getElementById('mk_image_preview').innerHTML = '';
+    document.getElementById('mk_image_file').value = '';
+}
+
+async function loadMistakes() {
+    const subj = document.getElementById('mk_filter').value;
+    const res = await fetch('/api/mistakes?child_id=' + adminChildId + (subj ? '&subject=' + encodeURIComponent(subj) : ''));
+    const data = await res.json();
+    const sel = document.getElementById('mk_filter');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">全部</option>' + data.subjects.map(s => `<option ${s===cur?'selected':''}>${s}</option>`).join('');
+
+    // 统计条
+    const st = data.stats || {total:0, mastered:0, open:0, due:0};
+    document.getElementById('mkStats').innerHTML =
+        `<span>📚 共 <b>${st.total}</b> 题</span>
+         <span>📖 待复习 <b style="color:#e65100;">${st.open}</b></span>
+         <span>🔴 今日到期 <b style="color:#c62828;">${st.due}</b></span>
+         <span>✅ 已掌握 <b style="color:#2e7d32;">${st.mastered}</b></span>
+         <span>掌握率 <b>${st.total?Math.round(st.mastered/st.total*100):0}%</b></span>`;
+
+    const box = document.getElementById('mistakeList');
+    if (!data.mistakes.length) {
+        box.innerHTML = '<div style="color:#bbb;font-size:13px;padding:10px 0;">还没有记录错题</div>';
+        return;
+    }
+    const today = todayISO();
+    let html = '';
+    data.mistakes.forEach(m => {
+        const done = !!m.mastered;
+        const due = !done && m.next_review && m.next_review <= today;
+        const dueBadge = due ? '<span style="background:#c62828;color:#fff;font-size:11px;padding:1px 6px;border-radius:4px;margin-right:6px;">🔴今日复习</span>' : '';
+        const nextBadge = m.next_review && !done ? `<span style="color:#888;font-size:12px;">下次 ${m.next_review}</span>` : '';
+        const img = m.image ? `<div style="margin-top:4px;"><img src="/attachments/${m.image}" onclick="window.open('/attachments/${m.image}')" style="max-height:90px;border-radius:6px;border:1px solid #ddd;cursor:pointer;" title="点击查看大图"></div>` : '';
+        html += `<div style="padding:10px 0;border-bottom:1px solid #f0f0f0;${done?'opacity:.55;':''} ${due?'background:#fff5f5;border-radius:8px;padding:10px;':''}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                <div style="font-size:13px;flex:1;${done?'text-decoration:line-through;':''}">
+                    ${dueBadge}
+                    <span style="background:#e3f2fd;color:#1565c0;font-size:11px;padding:1px 6px;border-radius:4px;margin-right:6px;">${m.subject||'未分类'}</span>
+                    ${m.mtype?`<span style="background:#f3e5f5;color:#7b1fa2;font-size:11px;padding:1px 6px;border-radius:4px;margin-right:6px;">${m.mtype}</span>`:''}
+                    <span style="color:#999;font-size:12px;">${m.date}</span>
+                    ${nextBadge}
+                    <div style="margin-top:4px;">${m.content}</div>
+                    ${img}
+                    ${m.note?`<div style="font-size:12px;color:#888;margin-top:2px;">📝 ${m.note}</div>`:''}
+                    <div style="font-size:11px;color:#aaa;margin-top:2px;">已复习 ${m.retry_count||0} 次</div>
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+                    ${done?'':`<button class="btn-secondary" style="font-size:12px;padding:4px 8px;" onclick="reviewMistake(${m.id},${m.retry_count||0})">🔁 复习一次</button>`}
+                    <button class="btn-secondary" style="font-size:12px;padding:4px 8px;" onclick="toggleMastered(${m.id}, ${done?0:1})">${done?'↩ 撤销':'✅ 已掌握'}</button>
+                    <button style="background:#f0f4f8;border:none;font-size:12px;padding:4px 8px;border-radius:6px;cursor:pointer;" onclick="editMistake(${m.id})">✏️</button>
+                    <button style="background:#ffebee;border:none;color:#c62828;font-size:12px;padding:4px 8px;border-radius:6px;cursor:pointer;" onclick="delMistake(${m.id})">🗑</button>
+                </div>
+            </div>
+        </div>`;
+    });
+    box.innerHTML = html;
+}
+
+async function addMistake() {
+    const content = document.getElementById('mk_content').value.trim();
+    if (!content) { alert('请填写错题内容'); return; }
+    await fetch('/api/mistakes?child_id=' + adminChildId, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            date: document.getElementById('mk_date').value || todayISO(),
+            subject: document.getElementById('mk_subject').value.trim(),
+            mtype: document.getElementById('mk_type').value.trim(),
+            content,
+            note: document.getElementById('mk_note').value.trim(),
+            image: pendingMkImage
+        })
+    });
+    document.getElementById('mk_content').value = '';
+    document.getElementById('mk_note').value = '';
+    clearMkImage();
+    loadMistakes();
+}
+
+async function reviewMistake(mid, retryCount) {
+    const next = mkNextReview(retryCount + 1);
+    await fetch('/api/mistakes/' + mid, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({retry_count: retryCount + 1, next_review: next})
+    });
+    loadMistakes();
+}
+
+async function toggleMastered(mid, mastered) {
+    await fetch('/api/mistakes/' + mid, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({mastered, next_review: mastered ? '' : undefined})});
+    loadMistakes();
+}
+
+async function editMistake(mid) {
+    const res = await fetch('/api/mistakes?child_id=' + adminChildId);
+    const data = await res.json();
+    const m = data.mistakes.find(x => x.id === mid);
+    if (!m) return;
+    const subject = prompt('科目：', m.subject); if (subject === null) return;
+    const mtype = prompt('题型：', m.mtype); if (mtype === null) return;
+    const content = prompt('错题内容：', m.content); if (content === null) return;
+    const note = prompt('错因/正确思路：', m.note); if (note === null) return;
+    await fetch('/api/mistakes/' + mid, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({subject: subject.trim(), mtype: mtype.trim(), content: content.trim(), note: note.trim()})
+    });
+    loadMistakes();
+}
+
+async function delMistake(mid) {
+    if (!confirm('删除这条错题？')) return;
+    await fetch('/api/mistakes/' + mid, {method:'DELETE'});
+    loadMistakes();
+}
+
+function exportReviewSheet() {
+    fetch('/api/mistakes?child_id=' + adminChildId).then(r=>r.json()).then(data => {
+        const open = data.mistakes.filter(m => !m.mastered);
+        if (!open.length) { alert('没有待复习的错题'); return; }
+        // 按科目分组
+        const groups = {};
+        open.forEach(m => { (groups[m.subject||'未分类'] = groups[m.subject||'未分类'] || []).push(m); });
+        let body = '';
+        let n = 1;
+        Object.entries(groups).forEach(([subj, list]) => {
+            body += `<h2>${subj}（${list.length}题）</h2>`;
+            list.forEach(m => {
+                body += `<div style="margin:10px 0;page-break-inside:avoid;"><b>${n}.</b> [${m.mtype||''}] ${m.content}`;
+                if (m.note) body += `<div style="color:#666;font-size:13px;margin-left:20px;">错因/思路：${m.note}</div>`;
+                body += `<div style="margin-left:20px;color:#999;">重做：____　日期：____</div></div>`;
+                n++;
+            });
+        });
+        const w = window.open('', '_blank');
+        w.document.write(`<html><head><meta charset="utf-8"><title>错题复习卷 ${todayISO()}</title>
+        <style>body{font-family:sans-serif;max-width:720px;margin:30px auto;padding:0 20px;}h1{font-size:20px;}h2{font-size:16px;border-left:4px solid #4a90d9;padding-left:8px;margin-top:24px;}div{font-size:15px;line-height:1.8;}</style></head>
+        <body onload="window.print()"><h1>错题复习卷（${todayISO()}）</h1>${body}</body></html>`);
+        w.document.close();
+    });
+}
+
+// 加载积分规则配置
+async function loadSettings() {
+    const res = await fetch('/api/settings?child_id=' + adminChildId);
+    const s = await res.json();
+    document.getElementById('cfg_base').value = s.base_points;
+    document.getElementById('cfg_star3').value = s.star3_bonus;
+    document.getElementById('cfg_star2').value = s.star2_bonus;
+    document.getElementById('cfg_optional').value = s.optional_bonus;
+    document.getElementById('cfg_habit').value = s.habit_points;
+    document.getElementById('cfg_habit_all').value = s.habit_all_bonus;
+    document.getElementById('cfg_streak7').value = s.streak7_bonus;
+    document.getElementById('cfg_streak30').value = s.streak30_bonus;
+    const sr = parseFloat(s.speech_rate || '0.9');
+    document.getElementById('cfg_speech_rate').value = sr;
+    document.getElementById('speechRateVal').textContent = sr.toFixed(1);
+}
+
+async function saveSpeechRate() {
+    const rate = parseFloat(document.getElementById('cfg_speech_rate').value);
+    await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({speech_rate: rate.toFixed(1)})
+    });
+    alert('语速已保存：' + rate.toFixed(1));
+}
+
+async function saveSettings() {
+    const data = {
+        base_points: parseInt(document.getElementById('cfg_base').value) || 30,
+        star3_bonus: parseInt(document.getElementById('cfg_star3').value) || 20,
+        star2_bonus: parseInt(document.getElementById('cfg_star2').value) || 10,
+        optional_bonus: parseInt(document.getElementById('cfg_optional').value) || 10,
+        habit_points: parseInt(document.getElementById('cfg_habit').value) || 5,
+        habit_all_bonus: parseInt(document.getElementById('cfg_habit_all').value) || 5,
+        streak7_bonus: parseInt(document.getElementById('cfg_streak7').value) || 50,
+        streak30_bonus: parseInt(document.getElementById('cfg_streak30').value) || 200,
+    };
+    await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+    alert('积分规则已保存');
+}
+
+// 重置指定日期计时（清墙钟/任务专注/习惯窗口，保留任务、完成、评价、积分）
+async function resetTodayTimer() {
+    const dateEl = document.getElementById('resetTimerDate');
+    const target = (dateEl && dateEl.value) || new Date().toISOString().slice(0, 10);
+    if (!confirm(`确定重置 ${target} 的计时吗？\n将清零该日墙钟、各任务专注时长、习惯倒计时；不会删除任务、完成打勾、评价和积分。`)) return;
+    const res = await fetch('/api/admin/reset-timer', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({child_id: adminChildId, date: target})
+    });
+    const data = await res.json();
+    if (!res.ok || data.success === false) { alert(data.error || '重置失败'); return; }
+    alert(`${target} 计时已重置`);
+    loadAdminTasks();
+}
+
+// 加载今日任务
+async function loadAdminTasks() {
+    const dateEl = document.getElementById('resetTimerDate');
+    if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+    loadSettings();
+    loadRewards();
+    loadHabits();
+    const res = await fetch('/api/today?child_id=' + adminChildId);
+    const data = await res.json();
+    window._todayTaskMap = {};
+    (data.tasks || []).forEach(t => window._todayTaskMap[t.id] = t);
+    currentStar = data.star;
+    updateStarDisplay();
+
+    // 回填情绪和备注
+    if (data.mood) {
+        const moodEl = document.querySelector(`input[name="mood"][value="${data.mood}"]`);
+        if (moodEl) moodEl.checked = true;
+    }
+    if (data.note) {
+        document.getElementById('noteInput').value = data.note;
+    }
+
+    const container = document.getElementById('adminTaskList');
+    if (!data.tasks || data.tasks.length === 0) {
+        container.innerHTML = '<div style="color:#999;font-size:14px;">暂无任务</div>';
+        return;
+    }
+
+    let html = '';
+    data.tasks.forEach((t, idx) => {
+        html += `<div draggable="true" data-task-id="${t.id}" ondragover="allowDrop(event)" ondrop="dropTask(event, ${idx})" ondragstart="dragTask(event, ${idx})" style="padding:12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:grab;background:white;">`;
+        html += `<div style="display:flex;justify-content:space-between;align-items:start;">`;
+        html += `<div><span style="color:#bbb;margin-right:6px;">⋮⋮</span><span style="background:#e3f2fd;color:#1565c0;font-size:12px;padding:2px 8px;border-radius:4px;margin-right:6px;">${t.subject}</span><strong>[${t.priority}]</strong> ${t.desc}</div>`;
+        html += `<div style="display:flex;gap:4px;">
+            <button onclick="editTask('${t.id}')" style="background:#4a90d9;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">编辑</button>
+            <button onclick="deferTask('${t.id}')" style="background:#9c27b0;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">延后</button>
+            <button onclick="deleteTask('${t.id}')" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">删除</button>
+        </div>`;
+        html += `</div>`;
+
+        // 附件管理
+        if (t.attachments) {
+            html += `<div style="margin-top:8px;">`;
+            // 已上传的附件列表
+            t.attachments.forEach((att, idx) => {
+                if (att.filename) {
+                    const icons = {image: '🖼', video: '🎬', audio: '🎵', pdf: '📄'};
+                    html += `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:13px;">`;
+                    html += `<span>${icons[att.type] || '📎'} ${att.desc}</span>`;
+                    html += `<span style="color:#4caf50;">✅</span>`;
+                    html += `<button onclick="deleteAttachment('${att.filename}')" style="background:#eee;border:none;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:12px;">删除</button>`;
+                    html += `</div>`;
+                } else {
+                    const icons = {image: '🖼', video: '🎬', audio: '🎵', pdf: '📄'};
+                    html += `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:13px;color:#999;">`;
+                    html += `<span>${icons[att.type] || '📎'} ${att.desc}（待上传）</span>`;
+                    html += `</div>`;
+                }
+            });
+            // 多选上传按钮
+            html += `<div style="margin-top:6px;">`;
+            html += `<input type="file" multiple onchange="uploadAttachments('${t.id}', this)" style="font-size:12px;">`;
+            html += `</div>`;
+            html += `</div>`;
+        }
+
+        // 任务评价
+        const q = t.quality || 0;
+        const e = t.errors || 0;
+        html += `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #eee;display:flex;align-items:center;gap:12px;font-size:13px;flex-wrap:wrap;">`;
+        html += `<span style="color:#666;">完成质量：</span>`;
+        html += `<label style="cursor:pointer;"><input type="radio" name="q_${t.id}" value="3" ${q===3?'checked':''}> 😄好</label>`;
+        html += `<label style="cursor:pointer;"><input type="radio" name="q_${t.id}" value="2" ${q===2?'checked':''}> 😐一般</label>`;
+        html += `<label style="cursor:pointer;"><input type="radio" name="q_${t.id}" value="1" ${q===1?'checked':''}> 😫差</label>`;
+        html += `<span style="color:#666;margin-left:8px;">错误数：</span>`;
+        html += `<input type="number" id="e_${t.id}" value="${e}" min="0" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:13px;">`;
+        html += `</div>`;
+
+        html += `</div>`;
+    });
+    container.innerHTML = html;
+}
+
+// 预览导入
+function previewImport() {
+    const text = document.getElementById('importText').value.trim();
+    if (!text) {
+        alert('请粘贴任务文本');
+        return;
+    }
+
+    // 简单解析预览
+    const lines = text.split('\n');
+    let taskCount = 0;
+    let subjects = [];
+    let currentSubject = '';
+    lines.forEach(line => {
+        line = line.trim();
+        const m = line.match(/^【(.+?)】$/);
+        if (m && !line.includes('日期') && !line.includes('时长')) {
+            currentSubject = m[1];
+            if (!subjects.includes(currentSubject)) subjects.push(currentSubject);
+        }
+        // 更宽容的匹配
+        if (line.match(/^[-·*•]\s*[\[\【]\s*(必做|选做)\s*[\]\】]/)) {
+            taskCount++;
+        }
+    });
+
+    if (taskCount === 0) {
+        alert('没有解析到任务，请检查格式');
+        return;
+    }
+
+    const confirmMsg = `即将为【${adminChildName}】导入：\n\n📚 科目：${subjects.join('、')}\n📝 任务数：${taskCount}个\n\n确认导入吗？`;
+    if (!confirm(confirmMsg)) return;
+
+    doImport(text);
+}
+
+// 执行导入
+async function doImport(text) {
+    const dateVal = document.getElementById('importDate').value || null;
+    const res = await fetch('/api/tasks/import?child_id=' + adminChildId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text: text, date: dateVal})
+    });
+    const data = await res.json();
+    if (data.success) {
+        alert(`✅ 成功为【${adminChildName}】导入 ${data.imported} 个任务`);
+        document.getElementById('importText').value = '';
+        document.getElementById('importDate').value = todayISO();
+        loadAdminTasks();
+    } else {
+        alert(data.error || '导入失败');
+    }
+}
+
+// 编辑任务
+function editTask(taskId) {
+    const t = (window._todayTaskMap || {})[taskId];
+    if (!t) return;
+    openTaskEdit(t, async (subject, desc, priority) => {
+        await fetch(`/api/task/${taskId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({subject, desc, priority})
+        });
+        loadAdminTasks();
+    });
+}
+
+// 任务延期（自定义N天，默认1）
+async function deferTask(taskId) {
+    const input = prompt('延后几天？（默认1天）', '1');
+    if (input === null) return;
+    let days = parseInt(input, 10);
+    if (isNaN(days) || days < 1) days = 1;
+    if (!confirm(`确定把这个任务延后${days}天？`)) return;
+    await fetch(`/api/task/${taskId}/defer`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({days: days})
+    });
+    loadAdminTasks();
+}
+
+// 删除任务
+async function deleteTask(taskId) {
+    if (!confirm('确定删除这个任务？')) return;
+    await fetch(`/api/task/${taskId}`, {method: 'DELETE'});
+    loadAdminTasks();
+}
+
+// 上传附件（支持多文件）
+async function uploadAttachments(taskId, input) {
+    const files = input.files;
+    if (!files || files.length === 0) return;
+    const formData = new FormData();
+    formData.append('task_id', taskId);
+    for (let f of files) {
+        formData.append('files', f);
+    }
+    const res = await fetch('/api/attachment/upload', {method: 'POST', body: formData});
+    const data = await res.json();
+    if (data.success) {
+        alert(`成功上传 ${data.uploaded.length} 个文件`);
+        loadAdminTasks();
+    } else {
+        alert('上传失败');
+    }
+}
+
+// 删除附件
+async function deleteAttachment(filename) {
+    if (!confirm('确定删除这个附件？')) return;
+    await fetch(`/api/attachment/${filename}`, {method: 'DELETE'});
+    loadAdminTasks();
+}
+
+// 星级
+function setStar(val) {
+    currentStar = val;
+    updateStarDisplay();
+}
+
+function updateStarDisplay() {
+    const stars = document.querySelectorAll('#starRating .star');
+    stars.forEach((s, i) => {
+        s.classList.toggle('active', i < currentStar);
+    });
+    const hints = ['', '需要加油', '还不错', '非常优秀'];
+    document.getElementById('starHint').textContent = `当前：${hints[currentStar]}`;
+}
+
+async function saveRating() {
+    // 收集每个任务的评价
+    const taskRatings = {};
+    const taskEls = document.querySelectorAll('[id^="e_"]');
+    taskEls.forEach(el => {
+        const taskId = el.id.replace('e_', '');
+        const qEl = document.querySelector(`input[name="q_${taskId}"]:checked`);
+        taskRatings[taskId] = {
+            quality: qEl ? parseInt(qEl.value) : 0,
+            errors: parseInt(el.value) || 0
+        };
+    });
+
+    // 收集情绪
+    const moodEl = document.querySelector('input[name="mood"]:checked');
+    const mood = moodEl ? moodEl.value : '';
+    const note = document.getElementById('noteInput').value.trim();
+
+    await fetch('/api/admin/rate?child_id=' + adminChildId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            star: currentStar,
+            mood: mood,
+            note: note,
+            task_ratings: taskRatings
+        })
+    });
+    alert('评价已保存');
+}
+
+// 修改PIN码
+async function changePin() {
+    const pin = document.getElementById('newPin').value.trim();
+    if (!pin || pin.length < 4) {
+        alert('PIN码至少4位');
+        return;
+    }
+    await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({pin: pin})
+    });
+    alert('PIN码已修改');
+    document.getElementById('newPin').value = '';
+}
+
+// 导出备份
+function exportBackup() {
+    window.location.href = '/api/backup/export';
+}
+
+// 服务连接信息 + 关闭服务
+async function loadAdminLan() {
+    const box = document.getElementById('adminLanBox');
+    try {
+        const res = await fetch('/api/server/info');
+        const d = await res.json();
+        if (d.lan_url) {
+            box.innerHTML = `其他设备连同一Wi-Fi后访问：<br>
+                <span style="font-size:15px;font-weight:700;color:#2d6fb8;">${d.lan_url}</span><br>
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=4&data=${encodeURIComponent(d.lan_url)}"
+                     style="width:110px;height:110px;border-radius:8px;margin-top:8px;background:#fff;padding:4px;">`;
+        } else {
+            box.textContent = '未检测到局域网地址（本机仅可访问）';
+        }
+    } catch (e) { box.textContent = '读取服务信息失败'; }
+}
+async function stopServer() {
+    if (!confirm('确定关闭服务吗？所有数据已保存在本机，关闭后其他设备将无法访问，下次重新启动即可继续。')) return;
+    await fetch('/api/server/stop', {method:'POST'});
+    setTimeout(() => {
+        document.body.innerHTML = '<div style="text-align:center;padding:60px 20px;font-family:sans-serif;color:#666;">⏻ 服务已关闭<br><small>数据已保存，可重新启动。</small></div>';
+    }, 800);
+}
+
+// 初始化
+document.getElementById('importDate').value = todayISO();
+document.getElementById('mk_date').value = todayISO();
+renderTemplates();
+loadAdminChildren().then(() => loadAdminTasks());
+loadAdminLan();
+</script>
+
+</body>
+</html>

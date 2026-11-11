@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>积分奖励</title>
+    <link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#4A90D9">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="作业清单">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/style.css?v=20261019b">
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>🏆 积分奖励</h1>
+    <select id="rewardsChildSelector" onchange="switchRewardsChild()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 8px;font-size:13px;">
+    </select>
+</div>
+
+<div class="main-content">
+
+    <!-- 当前积分 -->
+    <div class="points-big">
+        <div style="font-size:14px;color:#999;">当前积分</div>
+        <div class="number" id="totalPoints">0</div>
+    </div>
+
+    <!-- 徽章墙 -->
+    <div class="admin-section">
+        <h3>🏅 我的徽章</h3>
+        <div id="badgeWall" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;"></div>
+    </div>
+
+    <!-- 可兑换奖励 -->
+    <div class="admin-section">
+        <h3>🎁 可兑换奖励</h3>
+        <div id="rewardList"></div>
+    </div>
+
+    <!-- 积分记录 -->
+    <div class="admin-section">
+        <h3>📊 积分记录</h3>
+        <div id="pointsRecords" style="max-height:300px;overflow-y:auto;"></div>
+    </div>
+
+</div>
+
+<div class="bottom-nav">
+    <a href="/"><span class="icon">📋</span>今日</a>
+    <a href="/rewards" class="active"><span class="icon">🏆</span>奖励</a>
+    <a href="/history"><span class="icon">📅</span>历史</a>
+    <a href="/notes"><span class="icon">📝</span>随手记<span id="notesDueBadge" style="display:none;position:absolute;top:-2px;right:-4px;background:#e74c3c;color:white;font-size:10px;line-height:1;padding:0 4px;border-radius:8px;"></span></a>
+</div>
+
+<script>
+let rewardsChildId = 1;
+
+async function loadRewardsChildren() {
+    const res = await fetch('/api/children');
+    const data = await res.json();
+    const sel = document.getElementById('rewardsChildSelector');
+    sel.innerHTML = '';
+    data.children.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        if (c.id === rewardsChildId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+function switchRewardsChild() {
+    rewardsChildId = parseInt(document.getElementById('rewardsChildSelector').value);
+    loadBadges();
+}
+
+async function loadBadges() {
+    // 获取连续打卡天数
+    const streakRes = await fetch(`/api/streak?child_id=${rewardsChildId}`);
+    const streakData = await streakRes.json();
+    const streak = streakData.streak;
+
+    // 获取总积分
+    const pointsRes = await fetch(`/api/points?child_id=${rewardsChildId}`);
+    const pointsData = await pointsRes.json();
+    const totalPoints = pointsData.total;
+
+    const badges = [
+        {name: '初次完成', desc: '第一次完成作业', icon: '🌱', earned: streak >= 1},
+        {name: '连续7天', desc: '连续打卡7天', icon: '🔥', earned: streak >= 7},
+        {name: '连续30天', desc: '连续打卡30天', icon: '💪', earned: streak >= 30},
+        {name: '积分达人', desc: '累计获得500积分', icon: '💰', earned: totalPoints >= 500},
+        {name: '积分富翁', desc: '累计获得2000积分', icon: '👑', earned: totalPoints >= 2000},
+        {name: '全勤之星', desc: '连续7天全完成', icon: '⭐', earned: streak >= 7},
+    ];
+
+    let html = '';
+    badges.forEach(b => {
+        html += `<div style="padding:12px;background:${b.earned ? '#e8f5e9' : '#f5f5f5'};border-radius:8px;opacity:${b.earned ? 1 : 0.5};">`;
+        html += `<div style="font-size:32px;">${b.icon}</div>`;
+        html += `<div style="font-size:13px;font-weight:600;margin-top:4px;">${b.name}</div>`;
+        html += `<div style="font-size:11px;color:#999;">${b.desc}</div>`;
+        html += `</div>`;
+    });
+    document.getElementById('badgeWall').innerHTML = html;
+}
+
+async function loadData() {
+    // 积分和记录
+    const res = await fetch(`/api/points?child_id=${rewardsChildId}`);
+    const data = await res.json();
+    document.getElementById('totalPoints').textContent = data.total;
+
+    // 加载徽章
+    loadBadges();
+
+    // 记录
+    const recordsEl = document.getElementById('pointsRecords');
+    if (!data.records || data.records.length === 0) {
+        recordsEl.innerHTML = '<div style="color:#999;font-size:14px;">还没有积分记录</div>';
+    } else {
+        let html = '';
+        data.records.forEach(r => {
+            const sign = r.points > 0 ? '+' : '';
+            const color = r.points > 0 ? '#4caf50' : '#e74c3c';
+            html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:14px;">`;
+            html += `<span>${r.reason}</span>`;
+            html += `<span style="color:${color};font-weight:600;">${sign}${r.points}</span>`;
+            html += `</div>`;
+        });
+        recordsEl.innerHTML = html;
+    }
+
+    // 奖励列表（从设置获取）
+    const settingsRes = await fetch(`/api/settings?child_id=${rewardsChildId}`);
+    const settings = await settingsRes.json();
+    const rewardList = document.getElementById('rewardList');
+    let rHtml = '';
+    settings.rewards.forEach(r => {
+        const canAfford = data.total >= r.points;
+        rHtml += `<div class="reward-item">`;
+        rHtml += `<div><div class="name">${r.name}</div></div>`;
+        rHtml += `<div style="display:flex;align-items:center;gap:12px;">`;
+        rHtml += `<span class="cost">${r.points}分</span>`;
+        rHtml += `<button onclick="redeem('${r.id}')" ${canAfford ? '' : 'disabled'}>兑换</button>`;
+        rHtml += `</div></div>`;
+    });
+    rewardList.innerHTML = rHtml;
+}
+
+async function redeem(rewardId) {
+    if (!confirm('确定兑换这个奖励吗？')) return;
+    const res = await fetch(`/api/points/redeem?child_id=${rewardsChildId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reward_id: rewardId})
+    });
+    const data = await res.json();
+    if (data.success) {
+        alert('兑换成功！');
+        loadData();
+    } else {
+        alert(data.error || '兑换失败');
+    }
+}
+
+loadRewardsChildren().then(() => loadData());
+</script>
+
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>随手记</title>
+    <link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#4A90D9">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="作业清单">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/style.css?v=20261111">
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>📝 随手记</h1>
+    <select id="notesChildSelector" onchange="switchNotesChild()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 8px;font-size:13px;">
+    </select>
+</div>
+
+<div class="main-content" id="notesMain">
+
+    <!-- 类型筛选条 -->
+    <div class="note-type-bar" id="noteTypeBar">
+        <!-- 动态填充 -->
+    </div>
+
+    <!-- 搜索与筛选 -->
+    <div class="note-filter-row">
+        <input type="text" id="notesSearch" placeholder="🔍 搜索内容..." oninput="debounceSearch()">
+        <select id="notesDateFilter" onchange="applyFilters()">
+            <option value="">全部时间</option>
+            <option value="today">今天</option>
+            <option value="7">近7天</option>
+            <option value="30">近30天</option>
+            <option value="pinned">仅置顶</option>
+            <option value="due">到期提醒</option>
+        </select>
+    </div>
+
+    <!-- 新建记录区 -->
+    <div class="note-new-card">
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+            <select id="newNoteType" onchange="previewNewNoteColor()">
+                <!-- 动态填充 -->
+            </select>
+            <input type="date" id="newNoteRemind" style="font-size:13px;padding:6px;border:1px solid #e0e0e0;border-radius:6px;">
+            <button onclick="document.getElementById('newNoteRemind').value=''" class="chip-btn" title="清除提醒">✕</button>
+            <label class="chip-btn" for="newNoteImage" title="添加图片">📷</label>
+            <input type="file" accept="image/*" id="newNoteImage" style="display:none;" onchange="previewNewImage(this)">
+            <label class="chip-btn" for="newNoteAudio" title="添加音频（上传现有文件）">🎵</label>
+            <input type="file" accept="audio/*" id="newNoteAudio" style="display:none;" onchange="previewNewAudio(this)">
+            <button class="chip-btn" onclick="toggleNewPinned()" id="newPinBtn" title="置顶">📌</button>
+        </div>
+        <div id="newNoteAttachPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
+        <textarea id="newNoteContent" placeholder="记录点什么吧..." onkeydown="handleNewNoteKey(event)"></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+            <button class="timer-btn" onclick="saveNewNote()">保存</button>
+        </div>
+    </div>
+
+    <!-- 提醒提示卡 -->
+    <div id="notesDueBanner" class="notes-due-banner" style="display:none;"></div>
+
+    <!-- 记录列表 -->
+    <div id="notesList" class="notes-list"></div>
+
+    <!-- 空状态 -->
+    <div id="notesEmpty" class="notes-empty" style="display:none;">
+        <div style="font-size:48px;">📝</div>
+        <p>还没有记录哦</p>
+        <p style="font-size:12px;color:#aaa;">在上方写点什么吧～</p>
+    </div>
+
+    <!-- 加载更多 -->
+    <div id="notesLoadMore" style="text-align:center;padding:16px;display:none;">
+        <button class="timer-btn" onclick="loadMoreNotes()">加载更多</button>
+    </div>
+
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="eye-care-modal" id="editModal">
+    <div class="eye-care-content" style="max-width:560px;max-height:80vh;overflow-y:auto;text-align:left;">
+        <h2 style="text-align:center;">✏️ 编辑</h2>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+            <select id="editNoteType"></select>
+            <input type="date" id="editNoteRemind" style="font-size:13px;padding:6px;border:1px solid #e0e0e0;border-radius:6px;">
+            <label class="chip-btn" style="font-size:12px;">置顶 <input type="checkbox" id="editNotePinned" style="display:none;"></label>
+        </div>
+        <textarea id="editNoteContent" style="width:100%;min-height:120px;padding:10px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;"></textarea>
+        <div id="editNoteAttachments" style="margin-top:10px;"></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+            <button class="btn-secondary" onclick="closeEditModal()">取消</button>
+            <button class="timer-btn" onclick="saveEdit()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 图片预览弹窗 -->
+<div class="att-modal" id="imgModal">
+    <button class="att-close" onclick="document.getElementById('imgModal').style.display='none'">✕</button>
+    <img id="imgModalContent" style="max-width:100%;max-height:90vh;display:block;margin:auto;" />
+</div>
+
+<!-- 类型管理弹窗 -->
+<div class="eye-care-modal" id="typeManagerModal">
+    <div class="eye-care-content" style="max-width:520px;text-align:left;">
+        <h2 style="text-align:center;">🏷️ 类型管理</h2>
+        <div id="typeManagerList"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            <input type="text" id="newTypeName" placeholder="新类型名" style="flex:1;padding:8px;border:1px solid #e0e0e0;border-radius:6px;">
+            <input type="color" id="newTypeColor" value="#4a90d9" style="width:40px;padding:0;border:1px solid #e0e0e0;border-radius:6px;">
+            <button class="timer-btn" onclick="addType()">添加</button>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+            <button class="btn-secondary" onclick="closeTypeManager()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div class="bottom-nav">
+    <a href="/"><span class="icon">📋</span>今日</a>
+    <a href="/rewards"><span class="icon">🏆</span>奖励</a>
+    <a href="/history"><span class="icon">📅</span>历史</a>
+    <a href="/notes" class="active"><span class="icon">📝</span>随手记<span id="notesDueBadge" style="display:none;position:absolute;top:-2px;right:-4px;background:#e74c3c;color:white;font-size:10px;line-height:1;padding:0 4px;border-radius:8px;"></span></a>
+</div>
+
+<script src="/static/js/notes.js?v=20261111"></script>
+</body>
+</html>
