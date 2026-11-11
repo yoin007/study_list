@@ -17,20 +17,26 @@
 <body>
 
 <div class="top-bar">
-    <h1>⚙ 家长后台</h1>
-    <button class="admin-entry" onclick="window.location.href='/'">🏠</button>
+    <div>
+        <h1>⚙ 家长后台</h1>
+        <div class="date-display" id="adminDateDisplay" style="font-size:12px;opacity:0.8;"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+        <select id="adminChildSelector" onchange="switchAdminChild()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:12px;padding:4px 10px;font-size:13px;">
+        </select>
+        <button id="adminDarkToggle" class="admin-entry" onclick="toggleDarkMode()" title="深色模式">🌙</button>
+        <button class="admin-entry" onclick="window.location.href='/'" title="返回孩子端">🏠</button>
+        <button class="admin-entry" onclick="adminLogout()" title="退出家长后台">🔒</button>
+    </div>
 </div>
 
 <div class="main-content">
 
     <!-- 当前操作对象提示 -->
     <div class="admin-section" style="background:#fff3cd;border:1px solid #ffeaa7;padding:10px 16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-            <div style="font-size:14px;color:#856404;">
-                当前操作对象：<span id="currentAdminChild" style="color:#d63031;font-weight:700;font-size:16px;">宝贝</span>
-            </div>
-            <select id="adminChildSelector" onchange="switchAdminChild()" style="padding:6px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;">
-            </select>
+        <div style="font-size:14px;color:#856404;">
+            当前操作对象：<span id="currentAdminChild" style="color:#d63031;font-weight:700;font-size:16px;">宝贝</span>
+            <span style="font-size:12px;color:#a67c00;margin-left:8px;">（顶部下拉可切换）</span>
         </div>
     </div>
 
@@ -334,12 +340,22 @@
     <a href="/history"><span class="icon">📅</span>历史</a>
 </div>
 
+<script src="/static/js/common.js"></script>
 <script>
 let currentStar = 0;
 
 let rewardsConfig = [];
 let adminChildId = 1;
 let adminChildName = '';
+
+// common.js 提供 initDarkMode/toggleDarkMode/getCurrentChild/loadChildren
+initDarkMode();
+
+function adminLogout() {
+    if (!confirm('确定退出家长后台吗？')) return;
+    // Flask session cookie 会在下次登录被覆盖，直接跳回登录页即可
+    location.href = '/login';
+}
 
 // 标签页切换
 function switchTab(tabName) {

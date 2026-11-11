@@ -17,12 +17,11 @@ let editAttachmentsPendingRemove = [];  // 编辑时要删掉的附件 id
 
 // ============ 初始化 ============
 (async function init() {
-    // 先从 session 读当前孩子，避免还没 login 过就进来（默认 1）
+    // 先从 session 读当前孩子（common.js 也会在 DOMContentLoaded 后渲染顶部按钮组）
     try {
         const u = await fetch('/api/current-user').then(r => r.json());
         if (u && u.child_id) notesChildId = u.child_id;
     } catch (e) {}
-    await loadNotesChildren();
     await reloadAll();
     // URL 参数同步：child.html 跳转过来时会带 ?filter=due
     syncFromUrl();
@@ -51,47 +50,7 @@ function tryBrowserNotify() {
         // 不强制申请，等用户交互后再问
     }
 }
-
-async function loadNotesChildren() {
-    const res = await fetch('/api/children');
-    const data = await res.json();
-    const sel = document.getElementById('notesChildSelector');
-    sel.innerHTML = '';
-    // 确保 session 里的孩子在列表里
-    let matched = false;
-    data.children.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.name;
-        if (c.id === notesChildId) { opt.selected = true; matched = true; }
-        sel.appendChild(opt);
-    });
-    if (!matched && data.children.length) {
-        notesChildId = data.children[0].id;
-        sel.value = notesChildId;
-    }
-}
-
-async function switchNotesChild() {
-    const newId = parseInt(document.getElementById('notesChildSelector').value);
-    if (newId === notesChildId) return;
-    // 重新登录写 session
-    const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({child_id: newId})
-    });
-    const data = await res.json();
-    if (!data.success) { alert(data.error || '切换失败'); return; }
-    notesChildId = newId;
-    notesPage = 1;
-    selectedType = '';
-    notesSearchQuery = '';
-    notesDateFilter = '';
-    document.getElementById('notesSearch').value = '';
-    document.getElementById('notesDateFilter').value = '';
-    reloadAll();
-}
+// loadNotesChildren / switchNotesChild 已由 common.js 的 topBarActions + switchGlobalChild 替代
 
 async function reloadAll() {
     document.getElementById('notesLoadMore').style.display = 'none';

@@ -17,9 +17,11 @@
 <body>
 
 <div class="top-bar">
-    <h1>🏆 积分奖励</h1>
-    <select id="rewardsChildSelector" onchange="switchRewardsChild()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 8px;font-size:13px;">
-    </select>
+    <div>
+        <h1>🏆 积分奖励</h1>
+        <div class="date-display" style="font-size:12px;opacity:0.8;"></div>
+    </div>
+    <div id="topBarActions" style="display:flex;gap:8px;align-items:center;"></div>
 </div>
 
 <div class="main-content">
@@ -57,27 +59,18 @@
     <a href="/notes"><span class="icon">📝</span>随手记<span id="notesDueBadge" style="display:none;position:absolute;top:-2px;right:-4px;background:#e74c3c;color:white;font-size:10px;line-height:1;padding:0 4px;border-radius:8px;"></span></a>
 </div>
 
+<script src="/static/js/common.js"></script>
 <script>
 let rewardsChildId = 1;
 
-async function loadRewardsChildren() {
-    const res = await fetch('/api/children');
-    const data = await res.json();
-    const sel = document.getElementById('rewardsChildSelector');
-    sel.innerHTML = '';
-    data.children.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.name;
-        if (c.id === rewardsChildId) opt.selected = true;
-        sel.appendChild(opt);
-    });
-}
-
-function switchRewardsChild() {
-    rewardsChildId = parseInt(document.getElementById('rewardsChildSelector').value);
+// common.js 已负责渲染顶部按钮 + 孩子切换（switchGlobalChild 会 reload）
+(async () => {
+    const me = await getCurrentChild();
+    if (me) rewardsChildId = me.id;
     loadBadges();
-}
+    loadRewardList();
+    loadPointsRecords();
+})();
 
 async function loadBadges() {
     // 获取连续打卡天数

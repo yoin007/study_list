@@ -73,9 +73,10 @@ function dismissHomePrompt() {
 async function loadCurrentUser() {
     const res = await fetch('/api/current_user');
     const data = await res.json();
-    if (data.name) {
-        document.getElementById('currentUserName').textContent = data.name;
-    }
+    // 顶部孩子 pill 已由 common.js 渲染（renderTopBarActions）；
+    // 这里只做兜底更新，避免 app.js 里其他地方依赖时出错
+    const el = document.getElementById('currentUserName');
+    if (el && data.name) el.textContent = data.name;
 }
 
 // ========== 深色模式 ==========

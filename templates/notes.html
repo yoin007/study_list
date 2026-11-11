@@ -17,9 +17,11 @@
 <body>
 
 <div class="top-bar">
-    <h1>📝 随手记</h1>
-    <select id="notesChildSelector" onchange="switchNotesChild()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 8px;font-size:13px;">
-    </select>
+    <div>
+        <h1>📝 随手记</h1>
+        <div class="date-display" style="font-size:12px;opacity:0.8;"></div>
+    </div>
+    <div id="topBarActions" style="display:flex;gap:8px;align-items:center;"></div>
 </div>
 
 <div class="main-content" id="notesMain">
@@ -130,6 +132,7 @@
     <a href="/notes" class="active"><span class="icon">📝</span>随手记<span id="notesDueBadge" style="display:none;position:absolute;top:-2px;right:-4px;background:#e74c3c;color:white;font-size:10px;line-height:1;padding:0 4px;border-radius:8px;"></span></a>
 </div>
 
+<script src="/static/js/common.js"></script>
 <script src="/static/js/notes.js?v=20261111"></script>
 </body>
 </html>

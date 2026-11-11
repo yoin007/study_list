@@ -24,12 +24,7 @@
         <h1>📚 今日作业</h1>
         <div class="date-display" id="dateDisplay"></div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-        <span id="currentUserName" style="color:white;font-size:14px;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;"></span>
-        <button id="darkToggle" class="admin-entry" onclick="toggleDarkMode()" title="深色模式/夜间护眼">🌙</button>
-        <button class="admin-entry" onclick="logout()">切换</button>
-        <button class="admin-entry" onclick="showAdminLogin()">⚙</button>
-    </div>
+    <div id="topBarActions" style="display:flex;gap:8px;align-items:center;"></div>
 </div>
 
 <!-- 悬浮计时条：滚动时常驻顶部，实时警示用时 -->
@@ -171,6 +166,7 @@
     <a href="/notes"><span class="icon">📝</span>随手记<span id="notesDueBadge" style="display:none;position:absolute;top:-2px;right:-4px;background:#e74c3c;color:white;font-size:10px;line-height:1;padding:0 4px;border-radius:8px;"></span></a>
 </div>
 
+<script src="/static/js/common.js"></script>
 <script src="/static/js/app.js?v=20261019c"></script>
 </body>
 </html>

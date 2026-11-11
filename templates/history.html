@@ -17,9 +17,11 @@
 <body>
 
 <div class="top-bar">
-    <h1>📅 历史记录</h1>
-    <select id="historyChildSelector" onchange="switchHistoryChild()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:6px;padding:4px 8px;font-size:13px;">
-    </select>
+    <div>
+        <h1>📅 历史记录</h1>
+        <div class="date-display" style="font-size:12px;opacity:0.8;"></div>
+    </div>
+    <div id="topBarActions" style="display:flex;gap:8px;align-items:center;"></div>
 </div>
 
 <div class="main-content">
@@ -77,29 +79,19 @@
     <a href="/notes"><span class="icon">📝</span>随手记<span id="notesDueBadge" style="display:none;position:absolute;top:-2px;right:-4px;background:#e74c3c;color:white;font-size:10px;line-height:1;padding:0 4px;border-radius:8px;"></span></a>
 </div>
 
+<script src="/static/js/common.js"></script>
 <script>
 let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth() + 1;
 let historyChildId = 1;
 
-async function loadHistoryChildren() {
-    const res = await fetch('/api/children');
-    const data = await res.json();
-    const sel = document.getElementById('historyChildSelector');
-    sel.innerHTML = '';
-    data.children.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.name;
-        if (c.id === historyChildId) opt.selected = true;
-        sel.appendChild(opt);
-    });
-}
-
-function switchHistoryChild() {
-    historyChildId = parseInt(document.getElementById('historyChildSelector').value);
+// common.js 负责顶部按钮 + 孩子切换（reload 页面）
+(async () => {
+    const me = await getCurrentChild();
+    if (me) historyChildId = me.id;
     loadCalendar();
-}
+    loadStats();
+})();
 
 async function loadCalendar() {
     const res = await fetch(`/api/history/calendar?year=${currentYear}&month=${currentMonth}&child_id=${historyChildId}`);
