@@ -1356,12 +1356,14 @@ def api_timer_reset():
 
 @app.route('/api/admin/reset-timer', methods=['POST'])
 def api_admin_reset_timer():
-    """家长按日重置计时：清墙钟/任务专注/习惯窗口，保留完成打勾、评价与积分。"""
+    """家长按日重置计时。默认保留完成打勾/评价/积分；
+    reset_done=true 时一并恢复所有任务为未完成（适用于"今天重新来过"场景）。"""
     if not session.get('admin_authed'):
         return jsonify({'error': '需要家长权限'}), 403
     data = request.json or {}
     child_id = data.get('child_id') or session.get('child_id')
     target = data.get('date') or date.today().isoformat()
+    reset_done = data.get('reset_done', False)
     db = get_db()
     # 作业任务专注计时清零
     db.execute("""UPDATE tasks SET duration_seconds=0, tt_start=NULL, tt_pause_start=NULL,
@@ -1369,17 +1371,21 @@ def api_admin_reset_timer():
     # 习惯倒计时窗口清零（保留 done/done_time）
     db.execute("""UPDATE habit_records SET hb_start=NULL, hb_pause_start=NULL, hb_paused=0,
                   hb_elapsed=0, hb_pause_count=0 WHERE child_id=? AND date=?""", (child_id, target))
-    # 墙钟当日记录清零（保留 star/note/mood）；整体暂停次数 + 习惯暂停次数一并清
+    # 墙钟当日记录清零（保留 star/note/mood）；暂停次数 + 习惯暂停次数一并清
     db.execute("""UPDATE daily_records SET start_time=NULL, end_time=NULL,
-                  elapsed_seconds=0, pause_count=0, habit_pause_count=0
+                  elapsed_seconds=0, pause_count=0, habit_pause_count=0,
+                  completed_at=NULL
                   WHERE child_id=? AND date=?""", (child_id, target))
+    # 恢复未完成（可选）
+    if reset_done:
+        db.execute("UPDATE tasks SET done=0, done_time=NULL WHERE child_id=? AND date=?", (child_id, target))
     db.commit()
     # 内存墙钟复位
     timer_state[child_id] = {
         'status': 'idle', 'start_time': None, 'pause_start': None,
         'total_paused': 0, 'pause_count': 0, 'date': date.today().isoformat()
     }
-    return jsonify({'success': True, 'date': target, 'child_id': child_id})
+    return jsonify({'success': True, 'date': target, 'child_id': child_id, 'reset_done': reset_done})
 
 
 # ============ API: 习惯任务 ============

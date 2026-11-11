@@ -129,9 +129,15 @@
             <div style="margin-top:12px;padding-top:10px;border-top:1px dashed #e0e0e0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <label style="font-size:13px;color:#666;">重置计时日期：</label>
                 <input type="date" id="resetTimerDate" style="padding:6px 10px;border:1px solid #d6e0ee;border-radius:6px;font-size:14px;">
+                <label style="font-size:12px;color:#c62828;display:flex;align-items:center;gap:4px;margin-left:4px;">
+                    <input type="checkbox" id="resetDoneCheckbox"> 同时恢复任务为未完成
+                </label>
                 <button class="btn-secondary" style="font-size:12px;padding:6px 12px;background:#ffebee;color:#c62828;border:1px solid #ffcdd2;" onclick="resetTodayTimer()">♻️ 重置该日计时</button>
             </div>
-            <div style="font-size:12px;color:#999;margin-top:6px;">重置会清零所选日期的墙钟、各任务专注时长和习惯倒计时，<strong>不会</strong>删除任务、完成打勾、评价和积分。</div>
+            <div style="font-size:12px;color:#999;margin-top:6px;">
+                默认清零墙钟、专注时长、习惯倒计时；<strong>保留</strong>完成打勾、评价和积分。
+                勾选上方复选框后，同时把所有已完成的任务恢复为未完成（今天重新来过）。
+            </div>
         </div>
 
         <!-- 星级评价 -->
@@ -993,15 +999,19 @@ async function saveSettings() {
 async function resetTodayTimer() {
     const dateEl = document.getElementById('resetTimerDate');
     const target = (dateEl && dateEl.value) || new Date().toISOString().slice(0, 10);
-    if (!confirm(`确定重置 ${target} 的计时吗？\n将清零该日墙钟、各任务专注时长、习惯倒计时；不会删除任务、完成打勾、评价和积分。`)) return;
+    const resetDone = document.getElementById('resetDoneCheckbox')?.checked;
+    const tip = resetDone
+        ? `将清零墙钟/专注时长/习惯倒计时，并把所有已完成的任务恢复为未完成。`
+        : `将清零墙钟、各任务专注时长、习惯倒计时；保留任务、完成打勾、评价和积分。`;
+    if (!confirm(`确定重置 ${target} 的计时吗？\n${tip}`)) return;
     const res = await fetch('/api/admin/reset-timer', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({child_id: adminChildId, date: target})
+        body: JSON.stringify({child_id: adminChildId, date: target, reset_done: resetDone})
     });
     const data = await res.json();
     if (!res.ok || data.success === false) { alert(data.error || '重置失败'); return; }
-    alert(`${target} 计时已重置`);
+    alert(`${target} 已重置${resetDone ? '（任务已恢复未完成）' : ''}`);
     loadAdminTasks();
 }
 

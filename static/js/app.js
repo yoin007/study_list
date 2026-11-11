@@ -680,14 +680,18 @@ function renderTimer() {
     // 常驻悬浮计时条：仅在 进行中/暂停 时显示
     const sc = document.getElementById('stickyClock');
     const scBtn = document.getElementById('stickyClockBtn');
+    const mainContent = document.querySelector('.main-content');
     if (sc) {
         if (timer.status === 'running' || timer.status === 'paused') {
             sc.style.display = 'flex';
             scBtn.textContent = timer.status === 'running' ? '暂停' : '继续';
             const scTime = document.getElementById('stickyClockTime');
             if (scTime && timer.status === 'paused') scTime.textContent = formatTime(timer.elapsed_seconds);
+            // 避让：计时条出现时给 main-content 加顶部间距
+            if (mainContent) mainContent.style.paddingTop = '120px';
         } else {
             sc.style.display = 'none';
+            if (mainContent) mainContent.style.paddingTop = '';
         }
     }
 }
