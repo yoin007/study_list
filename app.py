@@ -190,6 +190,16 @@ def init_db():
             filename TEXT NOT NULL,
             FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
         );
+
+        -- 小应用（单网页应用）数据同步：按 孩子 + 应用 + 键 存 JSON 字符串
+        CREATE TABLE IF NOT EXISTS app_data (
+            child_id INTEGER NOT NULL,
+            slug TEXT NOT NULL,
+            data_key TEXT NOT NULL,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (child_id, slug, data_key)
+        );
     ''')
     try:
         db.execute("CREATE INDEX IF NOT EXISTS idx_notes_child_time ON notes(child_id, created_at DESC)")
@@ -408,6 +418,7 @@ def auto_backup():
             'note_types': [dict(r) for r in db.execute("SELECT * FROM note_types").fetchall()],
             'notes': [dict(r) for r in db.execute("SELECT * FROM notes").fetchall()],
             'note_attachments': [dict(r) for r in db.execute("SELECT * FROM note_attachments").fetchall()],
+            'app_data': [dict(r) for r in db.execute("SELECT * FROM app_data").fetchall()],
             'settings': dict(db.execute("SELECT key, value FROM settings").fetchall()),
             'backup_time': datetime.now().isoformat()
         }
@@ -539,6 +550,114 @@ def rewards():
 @app.route('/notes')
 def notes_view():
     return render_template('notes.html')
+
+
+# ============ 小应用（单网页应用）============
+# 约定：把任意单网页应用放到 static/apps/<slug>/ 下，并提供一个 app.json：
+#   { "name": "汉字随机认读", "icon": "字", "desc": "...", "entry": "index.html",
+#     "color": "#d9603f", "order": 10,
+#     "sync": true, "syncKeys": ["key1"], "syncPrefixes": ["prefix."] }
+# 放进去即自动出现在「应用中心」，无需改 Python 代码。
+APPS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'apps')
+
+
+def scan_apps():
+    """扫描 static/apps/*/app.json，返回应用清单（按 order 排序）。"""
+    apps = []
+    if not os.path.isdir(APPS_DIR):
+        return apps
+    for slug in sorted(os.listdir(APPS_DIR)):
+        meta_path = os.path.join(APPS_DIR, slug, 'app.json')
+        if not os.path.isfile(meta_path):
+            continue
+        try:
+            with open(meta_path, encoding='utf-8') as f:
+                meta = json.load(f)
+        except Exception:
+            continue
+        meta.setdefault('slug', slug)
+        meta['slug'] = slug
+        meta.setdefault('name', slug)
+        meta.setdefault('icon', '🧩')
+        meta.setdefault('desc', '')
+        meta.setdefault('entry', 'index.html')
+        meta.setdefault('color', '#4a90d9')
+        meta.setdefault('order', 100)
+        meta.setdefault('sync', False)
+        meta.setdefault('syncKeys', [])
+        meta.setdefault('syncPrefixes', [])
+        meta['url'] = f"/static/apps/{slug}/{meta['entry']}"
+        meta['page'] = f"/apps/{slug}"
+        apps.append(meta)
+    apps.sort(key=lambda a: (a.get('order', 100), a['slug']))
+    return apps
+
+
+@app.route('/apps')
+def apps_hub():
+    return render_template('apps.html', apps=scan_apps())
+
+
+@app.route('/apps/<slug>')
+def app_shell(slug):
+    app = next((a for a in scan_apps() if a['slug'] == slug), None)
+    if not app:
+        return render_template('apps.html', apps=scan_apps()), 404
+    return render_template('app_shell.html', app=app)
+
+
+@app.route('/api/apps')
+def api_apps():
+    return jsonify({'apps': scan_apps()})
+
+
+def _valid_app_slug(slug):
+    return any(a['slug'] == slug for a in scan_apps())
+
+
+@app.route('/api/apps/<slug>/data', methods=['GET'])
+def api_app_data_get(slug):
+    child_id, err = _require_notes_auth()
+    if err:
+        return err
+    if not _valid_app_slug(slug):
+        return jsonify({'error': '应用不存在'}), 404
+    db = get_db()
+    rows = db.execute(
+        "SELECT data_key, value, updated_at FROM app_data WHERE child_id=? AND slug=?",
+        (child_id, slug)).fetchall()
+    keys = {}
+    latest = ''
+    for r in rows:
+        try:
+            keys[r['data_key']] = json.loads(r['value'])
+        except Exception:
+            keys[r['data_key']] = r['value']
+        if r['updated_at'] > latest:
+            latest = r['updated_at']
+    return jsonify({'slug': slug, 'keys': keys, 'updated_at': latest})
+
+
+@app.route('/api/apps/<slug>/data', methods=['PUT', 'POST'])
+def api_app_data_put(slug):
+    child_id, err = _require_notes_auth()
+    if err:
+        return err
+    if not _valid_app_slug(slug):
+        return jsonify({'error': '应用不存在'}), 404
+    payload = request.json or {}
+    keys = payload.get('keys') or {}
+    if not isinstance(keys, dict):
+        return jsonify({'error': 'keys 必须是对象'}), 400
+    db = get_db()
+    now = datetime.now().isoformat()
+    for k, v in keys.items():
+        db.execute(
+            "INSERT INTO app_data (child_id, slug, data_key, value, updated_at) VALUES (?,?,?,?,?) "
+            "ON CONFLICT(child_id, slug, data_key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+            (child_id, slug, str(k), json.dumps(v, ensure_ascii=False), now))
+    db.commit()
+    return jsonify({'success': True, 'updated_at': now, 'count': len(keys)})
 
 
 # ============ API: 孩子管理 ============
@@ -2165,6 +2284,7 @@ def api_backup_export():
         'note_types': [dict(r) for r in db.execute("SELECT * FROM note_types").fetchall()],
         'notes': [dict(r) for r in db.execute("SELECT * FROM notes").fetchall()],
         'note_attachments': [dict(r) for r in db.execute("SELECT * FROM note_attachments").fetchall()],
+        'app_data': [dict(r) for r in db.execute("SELECT * FROM app_data").fetchall()],
         'settings': dict(db.execute("SELECT key, value FROM settings").fetchall()),
         'backup_time': datetime.now().isoformat()
     }

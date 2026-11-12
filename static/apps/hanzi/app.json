@@ -1,0 +1,12 @@
+{
+  "slug": "hanzi",
+  "name": "汉字随机认读",
+  "icon": "字",
+  "desc": "按日期累计字库 · 随机抽字 · 课本词语 · 笔顺动画 · 间隔复习",
+  "color": "#d9603f",
+  "entry": "index.html",
+  "sync": true,
+  "syncKeys": ["hanziReaderDB.v2", "hanziReaderRound.v2"],
+  "syncPrefixes": ["hz.stroke."],
+  "order": 10
+}

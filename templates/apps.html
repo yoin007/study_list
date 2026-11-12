@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>应用中心</title>
+    <link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#4A90D9">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="作业清单">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/style.css?v=20261112">
+<style>
+    .app-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 14px;
+        margin-top: 14px;
+    }
+    .app-card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        background: white;
+        border-radius: 18px;
+        padding: 18px 16px;
+        box-shadow: 0 4px 16px rgba(90, 74, 56, 0.08);
+        border: 1px solid #f0eee9;
+        transition: transform .18s, box-shadow .18s;
+    }
+    .app-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(90, 74, 56, 0.14); }
+    .app-card:active { transform: scale(.985); }
+    .app-icon {
+        width: 48px; height: 48px; border-radius: 14px;
+        display: grid; place-items: center;
+        color: #fff; font-size: 24px; font-weight: 600;
+        font-family: "Kaiti SC", "STKaiti", "KaiTi", serif;
+        margin-bottom: 12px;
+    }
+    .app-name { font-size: 15.5px; font-weight: 600; margin-bottom: 6px; }
+    .app-desc { font-size: 12px; color: #8b939a; line-height: 1.6; }
+    .apps-empty {
+        text-align: center; padding: 60px 20px; color: #a6adb1; font-size: 14px; line-height: 2;
+    }
+    .apps-empty code {
+        background: #f4f2ee; padding: 2px 6px; border-radius: 5px;
+        font-size: 12.5px; color: #d9603f;
+    }
+    body.dark-mode .app-card { background: #2a2f38 !important; border-color: #3a4049 !important; }
+    body.dark-mode .app-name { color: #e6e8eb; }
+    body.dark-mode .app-desc { color: #9aa0a8; }
+    body.dark-mode .apps-empty code { background: #333842; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div>
+        <h1>🧩 应用中心</h1>
+        <div class="date-display" style="font-size:12px;opacity:0.8;">小工具与学习应用</div>
+    </div>
+    <div id="topBarActions" style="display:flex;gap:8px;align-items:center;"></div>
+</div>
+
+<div class="main-content" style="padding-bottom:90px;">
+    {% if apps %}
+    <div class="app-grid">
+        {% for a in apps %}
+        <a class="app-card" href="{{ a.page }}">
+            <div class="app-icon" style="background:{{ a.color }};">{{ a.icon }}</div>
+            <div class="app-name">{{ a.name }}</div>
+            <div class="app-desc">{{ a.desc }}</div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="apps-empty">
+        🧩 还没有小应用<br>
+        把单网页应用放到 <code>static/apps/&lt;名称&gt;/</code> 并附一个 <code>app.json</code> 即可自动出现在这里
+    </div>
+    {% endif %}
+</div>
+
+<div class="bottom-nav">
+    <a href="/"><span class="icon">📋</span>今日</a>
+    <a href="/rewards"><span class="icon">🏆</span>奖励</a>
+    <a href="/history"><span class="icon">📅</span>历史</a>
+    <a href="/notes"><span class="icon">📝</span>随手记</a>
+    <a href="/apps" class="active"><span class="icon">🧩</span>应用</a>
+</div>
+
+<script src="/static/js/common.js"></script>
+</body>
+</html>

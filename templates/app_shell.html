@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ app.name }}</title>
+    <link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#4A90D9">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/style.css?v=20261112">
+<style>
+    html, body { height: 100%; }
+    body {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        margin: 0;
+    }
+    .top-bar { flex: none; }
+    .app-frame {
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+        border: 0;
+        background: #f8f6f1;
+        margin-bottom: calc(58px + env(safe-area-inset-bottom));
+    }
+    body.dark-mode .app-frame { background: #1a1d22; }
+    .sync-tip {
+        position: fixed;
+        top: 64px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(40, 40, 40, .9);
+        color: #fff;
+        font-size: 12px;
+        padding: 6px 14px;
+        border-radius: 14px;
+        z-index: 400;
+        opacity: 0;
+        transition: opacity .25s;
+        pointer-events: none;
+        white-space: nowrap;
+    }
+    .sync-tip.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div>
+        <h1><a href="/apps" style="color:white;text-decoration:none;opacity:.85;">‹</a> {{ app.icon }} {{ app.name }}</h1>
+        <div class="date-display" style="font-size:12px;opacity:0.8;">{{ app.desc }}</div>
+    </div>
+    <div id="topBarActions" style="display:flex;gap:8px;align-items:center;"></div>
+</div>
+
+<iframe class="app-frame" id="appFrame" title="{{ app.name }}"></iframe>
+<div class="sync-tip" id="syncTip"></div>
+
+<div class="bottom-nav">
+    <a href="/"><span class="icon">📋</span>今日</a>
+    <a href="/rewards"><span class="icon">🏆</span>奖励</a>
+    <a href="/history"><span class="icon">📅</span>历史</a>
+    <a href="/notes"><span class="icon">📝</span>随手记</a>
+    <a href="/apps" class="active"><span class="icon">🧩</span>应用</a>
+</div>
+
+<script src="/static/js/common.js"></script>
+<script>
+(function () {
+    var APP = {
+        slug: {{ app.slug|tojson }},
+        url: {{ app.url|tojson }},
+        sync: {{ (1 if app.sync else 0)|tojson }},
+        keys: {{ app.syncKeys|tojson }},
+        prefixes: {{ app.syncPrefixes|tojson }}
+    };
+    var SHADOW = 'appSyncTs.' + APP.slug;   // 本机记录的服务端时间戳（用于判断谁更新）
+    var frame = document.getElementById('appFrame');
+    var tipEl = document.getElementById('syncTip');
+    var lastSnap = '';
+
+    function toast(msg) {
+        if (!tipEl) return;
+        tipEl.textContent = msg;
+        tipEl.classList.add('show');
+        setTimeout(function () { tipEl.classList.remove('show'); }, 1600);
+    }
+
+    // 收集本应用声明要同步的 localStorage 项
+    function collect() {
+        var out = {};
+        try {
+            for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (APP.keys.indexOf(k) >= 0 ||
+                    APP.prefixes.some(function (p) { return k.indexOf(p) === 0; })) {
+                    out[k] = localStorage.getItem(k);
+                }
+            }
+        } catch (e) {}
+        return out;
+    }
+
+    function localTs() {
+        return parseInt(localStorage.getItem(SHADOW) || '0', 10) || 0;
+    }
+    function markSynced(ts) {
+        if (ts) localStorage.setItem(SHADOW, ts);
+    }
+
+    // 把服务端数据写回 localStorage（值若是字符串则原样写入）
+    function applyServer(keys) {
+        Object.keys(keys).forEach(function (k) {
+            var v = keys[k];
+            try {
+                localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
+            } catch (e) {}
+        });
+    }
+
+    function push() {
+        var keys = collect();
+        if (!Object.keys(keys).length) return Promise.resolve();
+        return fetch('/api/apps/' + APP.slug + '/data', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keys: keys })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d && d.updated_at) markSynced(d.updated_at);
+        }).catch(function () {});
+    }
+
+    // 加载前：服务端较新则覆盖本机，否则把本机数据推上去
+    function boot() {
+        if (!APP.sync) {
+            loadFrame();
+            return;
+        }
+        fetch('/api/apps/' + APP.slug + '/data')
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var serverKeys = (d && d.keys) || {};
+                var serverTs = (d && d.updated_at) || '';
+                var hasServer = Object.keys(serverKeys).length > 0;
+                var hasLocal = Object.keys(collect()).length > 0;
+                if (hasServer && (!hasLocal || serverTs > localTs())) {
+                    applyServer(serverKeys);
+                    markSynced(serverTs);
+                    toast('已同步云端数据');
+                } else if (hasLocal && !hasServer) {
+                    push().then(function () { toast('本机数据已上传'); });
+                }
+                loadFrame();
+            })
+            .catch(loadFrame);
+    }
+
+    function loadFrame() {
+        frame.src = APP.url;
+        lastSnap = JSON.stringify(collect());
+        if (APP.sync) {
+            setInterval(function () {
+                var snap = JSON.stringify(collect());
+                if (snap !== lastSnap) {
+                    lastSnap = snap;
+                    push();
+                }
+            }, 4000);
+            window.addEventListener('pagehide', function () {
+                var keys = collect();
+                if (Object.keys(keys).length) {
+                    try {
+                        var blob = new Blob([JSON.stringify({ keys: keys })],
+                            { type: 'application/json' });
+                        // 尽量在页面卸载前发出
+                        navigator.sendBeacon &&
+                            navigator.sendBeacon('/api/apps/' + APP.slug + '/data', blob);
+                    } catch (e) {}
+                }
+            });
+        }
+    }
+
+    boot();
+})();
+</script>
+</body>
+</html>
