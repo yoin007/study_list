@@ -155,10 +155,10 @@ async function editType(id, field, val) {
 }
 
 async function deleteType(id) {
-    if (!confirm('确定删除这个类型吗？')) return;
+    if (!(await confirmDialog('删除后该类型下的随手记将变成"未分类"，确定删除吗？', '删除类型'))) return;
     const res = await fetch(`/api/notes/types/${id}`, {method: 'DELETE'});
     const data = await res.json();
-    if (data.error) { alert(data.error); return; }
+    if (data.error) { showToast(data.error); return; }
     if (selectedType === id) selectedType = '';
     await loadTypes();
     loadNotes();
@@ -436,7 +436,7 @@ async function saveNewNote() {
     const content = document.getElementById('newNoteContent').value.trim();
     const type_id = document.getElementById('newNoteType').value;
     const remind_at = document.getElementById('newNoteRemind').value;
-    if (!content) { alert('内容不能为空'); return; }
+    if (!content) { showToast('内容不能为空'); return; }
 
     const res = await fetch('/api/notes', {
         method: 'POST',
@@ -444,7 +444,7 @@ async function saveNewNote() {
         body: JSON.stringify({content, type_id, remind_at, pinned: newNotePinned})
     });
     const data = await res.json();
-    if (!data.success) { alert(data.error || '保存失败'); return; }
+    if (!data.success) { showToast(data.error || '保存失败'); return; }
 
     // 附件上传
     for (const a of newNoteAttachments) {
@@ -507,7 +507,7 @@ function closeEditModal() {
 
 async function saveEdit() {
     const content = document.getElementById('editNoteContent').value.trim();
-    if (!content) { alert('内容不能为空'); return; }
+    if (!content) { showToast('内容不能为空'); return; }
     const pinned = document.getElementById('editNotePinned').checked;
     const body = {
         content,
@@ -529,10 +529,10 @@ async function saveEdit() {
 }
 
 async function deleteNote(id) {
-    if (!confirm('确定删除这条记录吗？')) return;
+    if (!(await confirmDialog('确定删除这条随手记吗？', '删除随手记'))) return;
     const res = await fetch(`/api/notes/${id}`, {method: 'DELETE'});
     const data = await res.json();
-    if (data.error) { alert(data.error); return; }
+    if (data.error) { showToast(data.error); return; }
     loadTypes();
     loadNotes();
     loadDueBanner();

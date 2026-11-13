@@ -16,6 +16,9 @@ body {
 
 /* ========== 顶部导航 ========== */
 .top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 300;
     background: linear-gradient(135deg, #4a90d9, #357abd);
     color: white;
     padding: 16px 20px;
@@ -87,6 +90,7 @@ body {
     max-width: 600px;
     margin: 0 auto;
     padding: 20px 16px 100px;
+    padding-top: 80px;  /* 给 fixed top-bar 让路 */
 }
 
 /* ========== 计时器卡片 ========== */
@@ -102,7 +106,7 @@ body {
 /* 悬浮常驻计时条（计时中滚动时常驻顶部，避开导航栏） */
 .sticky-clock {
     position: fixed;
-    top: 56px;
+    top: 0;  /* 由 JS 根据 top-bar 高度动态设置 */
     left: 0;
     right: 0;
     z-index: 250;
@@ -855,6 +859,7 @@ input, textarea, select {
 @media (max-width: 640px) {
     .main-content {
         padding: 14px 12px 96px;
+        padding-top: calc(72px + env(safe-area-inset-top));
     }
     .top-bar {
         padding: calc(12px + env(safe-area-inset-top)) 14px 12px;

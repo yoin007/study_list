@@ -4,6 +4,24 @@ let timerInterval = null;
 let breakCheckInterval = null;
 let modalTimerStartPending = false;
 
+// ========== 备份提醒 ==========
+async function checkBackupReminder() {
+    // 同一个自然日只弹一次提示
+    const lastKey = 'backupReminderShown';
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(lastKey) === today) return;
+    try {
+        const res = await fetch('/api/backup/status');
+        if (!res.ok) return;
+        const d = await res.json();
+        if (d.need_warning) {
+            const msg = `📦 已 ${d.days_since} 天没做完整备份了（附件 ${d.attachments_size_mb}MB），设置页点「导出完整备份」`;
+            showToast(msg, 5000);
+            localStorage.setItem(lastKey, today);
+        }
+    } catch (e) {}
+}
+
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', () => {
     loadCurrentUser();
@@ -11,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateDateDisplay();
     setupHomePrompt();
     loadNoteDueCount();
+    checkBackupReminder();
 });
 
 // ========== 随手记到期提醒 ==========
@@ -343,7 +362,7 @@ async function startTaskTimer(taskId) {
     await showFirstTimeWallNotice();
     const res = await fetch(`/api/task/${taskId}/timer/start`, {method:'POST'});
     const data = await res.json();
-    if (data && data.success === false) { alert(data.error || '操作失败'); return; }
+    if (data && data.success === false) { showToast(data.error || '操作失败'); return; }
     // 墙钟自动 start/resume 也触发注意事项（后端 wall_action 返回 auto_start/auto_resume）
     if (data.wall_action === 'auto_start') markWallStartedToday();
     await loadToday();
@@ -557,7 +576,7 @@ async function toggleHabitTimer(habitId, minutes) {
     const action = running ? 'pause' : 'start';
     const res = await fetch(`/api/habit/${habitId}/timer/${action}`, {method:'POST'});
     const data = await res.json();
-    if (data && data.success === false) { alert(data.error || '操作失败'); return; }
+    if (data && data.success === false) { showToast(data.error || '操作失败'); return; }
     await loadToday();
 }
 
@@ -574,7 +593,7 @@ async function finishHabit(habitId) {
     await fetch(`/api/habit/${habitId}/toggle`, {method:'POST'});
     await loadToday();
     const name = todayData.habits.find(h => String(h.id) === String(habitId))?.name || '任务';
-    alert(`🎉 ${name}时间到！完成得5积分`);
+    showToast(`🎉 ${name}完成 · +5 积分`);
 }
 
 async function toggleHabit(habitId) {
@@ -688,8 +707,16 @@ function renderTimer() {
             scBtn.textContent = timer.status === 'running' ? '暂停' : '继续';
             const scTime = document.getElementById('stickyClockTime');
             if (scTime && timer.status === 'paused') scTime.textContent = formatTime(timer.elapsed_seconds);
-            // 避让：计时条出现时给 main-content 加顶部间距
-            if (mainContent) mainContent.style.paddingTop = '120px';
+            // 动态避让：量 top-bar 实际高度，sticky-clock 紧跟其下，main-content 给两者让路
+            const topBar = document.querySelector('.top-bar');
+            const barH = topBar ? topBar.offsetHeight : 56;
+            sc.style.top = barH + 'px';
+            // 下一帧取准确高度（刚显示时可能还没 layout）
+            requestAnimationFrame(() => {
+                const scH = sc.offsetHeight;
+                sc.style.top = barH + 'px';
+                if (mainContent) mainContent.style.paddingTop = (barH + scH + 8) + 'px';
+            });
         } else {
             sc.style.display = 'none';
             if (mainContent) mainContent.style.paddingTop = '';
@@ -728,7 +755,7 @@ async function timerAction(action) {
     }
     const res = await fetch(`/api/timer/${action}`, {method: 'POST'});
     const data = await res.json();
-    if (data && data.success === false) { alert(data.error || '操作失败'); return; }
+    if (data && data.success === false) { showToast(data.error || '操作失败'); return; }
     await loadToday();
     if (action === 'start') {
         startBreakCheck();
@@ -745,14 +772,12 @@ async function showFirstTimeWallNotice() {
     try { last = localStorage.getItem('wallStarted') || ''; } catch {}
     const today = new Date().toISOString().slice(0,10);
     if (last === today) return;  // 今天已经弹过
-    // 用原生 confirm 弹（保证阻塞用户确认），然后让后续 timerAction 或 startTaskTimer 继续
-    const ok = window.confirm('📢 作业开始啦！\n\n' +
-                              '1. 墙钟 = 全局计时，暂停墙钟 = 所有任务一起暂停\n' +
-                              '2. 同一时刻只有一个任务在计时，点另一个任务会自动切过去\n' +
-                              '3. 每 20 分钟记得抬头远眺 20 秒护眼\n' +
-                              '4. 墙钟暂停次数 = 今天总共休息了几次\n\n' +
-                              '准备好了吗？');
-    if (ok) markWallStartedToday();
+    document.getElementById('wallNoticeModal')?.classList.add('show');
+}
+
+function closeWallNotice() {
+    document.getElementById('wallNoticeModal')?.classList.remove('show');
+    markWallStartedToday();
 }
 
 function startTimerDisplay() {
@@ -976,7 +1001,7 @@ async function loadPDF(url) {
         await renderCurrentPage();
     } catch (e) {
         console.error('PDF加载失败:', e);
-        alert('PDF加载失败: ' + e.message);
+        showToast('PDF加载失败: ' + e.message);
     }
 }
 

@@ -7,6 +7,5 @@
   "entry": "index.html",
   "sync": true,
   "syncKeys": ["hanziReaderDB.v2", "hanziReaderRound.v2"],
-  "syncPrefixes": ["hz.stroke."],
   "order": 10
 }

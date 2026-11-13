@@ -1414,32 +1414,32 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     $('#speakBtn').classList.add('speaking');
     synth.speak(u);
   }
-  /* 笔顺数据：按需联网获取（jsdelivr → unpkg），成功后缓存到本机，之后离线可用 */
+  /* 笔顺数据：内存缓存 → 本地常用字库 data/（3500 字，离线可用）→ 联网兜底；不写浏览器存储 */
   function loadStrokeData(ch){
     if(strokeCache[ch]) return Promise.resolve(strokeCache[ch]);
-    var raw = null;
-    try{ raw = localStorage.getItem('hz.stroke.' + ch); }catch(e){}
-    if(raw){
-      try{ strokeCache[ch] = JSON.parse(raw); return Promise.resolve(strokeCache[ch]); }catch(e){}
-    }
     var u = encodeURIComponent(ch);
     var urls = [
       'https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0.1/' + u + '.json',
       'https://unpkg.com/hanzi-writer-data@2.0.1/' + u + '.json'
     ];
-    function attempt(i){
-      if(i >= urls.length) return Promise.reject(new Error('no stroke data'));
-      return fetch(urls[i]).then(function(r){
+    function valid(d){
+      if(!d || !Array.isArray(d.strokes) || !Array.isArray(d.medians)) throw new Error('bad data');
+      return d;
+    }
+    function fetchJson(url){
+      return fetch(url).then(function(r){
         if(!r.ok) throw new Error('http ' + r.status);
         return r.json();
-      }).catch(function(){ return attempt(i + 1); });
+      });
     }
-    return attempt(0).then(function(d){
-      if(!d || !Array.isArray(d.strokes) || !Array.isArray(d.medians)) throw new Error('bad data');
-      strokeCache[ch] = d;
-      try{ localStorage.setItem('hz.stroke.' + ch, JSON.stringify(d)); }catch(e){}
-      return d;
-    });
+    function attempt(i){
+      if(i >= urls.length) return Promise.reject(new Error('no stroke data'));
+      return fetchJson(urls[i]).catch(function(){ return attempt(i + 1); });
+    }
+    return fetchJson('/static/apps/hanzi/data/' + u + '.json')
+      .then(valid)
+      .catch(function(){ return attempt(0).then(valid); })
+      .then(function(d){ strokeCache[ch] = d; return d; });
   }
   function playWriter(ch, d){
     if(!writer || !strokeMode || current !== ch) return;
@@ -1475,7 +1475,7 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
         }).catch(function(e){ if(onError) onError(e); });
       },
       onLoadCharDataError:function(){
-        $('#strokeInfo').textContent = '「' + ch + '」暂无笔顺数据，或需要联网加载一次（首次加载后自动缓存）';
+        $('#strokeInfo').textContent = '「' + ch + '」暂无笔顺数据（本地常用字库未收录，联网加载也失败了）';
       }
     });
   }
@@ -1487,7 +1487,7 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     $('#writerBox').classList.remove('hidden');
     $('#writerTools').classList.remove('hidden');
     $('#strokeBtn').textContent = '🔁 重播笔顺';
-    $('#strokeInfo').textContent = '正在联网获取「' + current + '」的笔顺数据…';
+    $('#strokeInfo').textContent = '正在加载「' + current + '」的笔顺数据…';
     buildWriter();
   }
   function replayStroke(){

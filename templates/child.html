@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="作业清单">
 <link rel="apple-touch-icon" href="/static/icon.svg">
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/css/style.css?v=20261019b">
+<link rel="stylesheet" href="/static/css/style.css?v=20261113">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
@@ -95,12 +95,12 @@
     <div class="eye-care-content">
         <h2>👀 写作业前先注意</h2>
         <ul style="text-align:left;display:inline-block;">
-            <li>坐直了！胸口离桌沿一拳</li>
-            <li>眼睛离书本一尺远</li>
+            <li>坐直！胸口离桌沿一拳</li>
+            <li>眼睛离书本/平板 30cm 以上</li>
             <li>握笔手指离笔尖一寸</li>
-            <li>光线从左前方照过来</li>
+            <li>光线从左前方照过来，屏幕亮度与环境一致</li>
             <li>不要趴着、躺着写作业</li>
-            <li>每20分钟抬头看看远处</li>
+            <li>每 20 分钟抬头看远处 20 秒</li>
         </ul>
         <br>
         <button class="timer-btn" onclick="startTimerFromModal()">知道了，开始写！</button>
@@ -114,6 +114,21 @@
         <p style="font-size:16px;">看了20分钟书啦，抬头看看远处20秒吧！</p>
         <br>
         <button class="timer-btn" onclick="closeBreakModal()">休息好了，继续写</button>
+    </div>
+</div>
+
+<!-- 墙钟首次启动须知 -->
+<div class="eye-care-modal" id="wallNoticeModal">
+    <div class="eye-care-content">
+        <h2>📢 作业开始啦</h2>
+        <ul style="text-align:left;display:inline-block;font-size:15px;line-height:1.9;margin:10px 0;">
+            <li><b>墙钟</b> = 全局计时，暂停墙钟 = 所有任务一起暂停</li>
+            <li>同一时刻只有一个任务在计时，点另一个任务会自动切过去</li>
+            <li>每 20 分钟记得抬头远眺 20 秒护眼</li>
+            <li>墙钟暂停次数 = 今天总共休息了几次</li>
+        </ul>
+        <br>
+        <button class="timer-btn" onclick="closeWallNotice()">准备好了，开始！</button>
     </div>
 </div>
 
@@ -167,7 +182,7 @@
     <a href="/apps"><span class="icon">🧩</span>应用</a>
 </div>
 
-<script src="/static/js/common.js"></script>
-<script src="/static/js/app.js?v=20261019c"></script>
+<script src="/static/js/common.js?v=20261113b"></script>
+<script src="/static/js/app.js?v=20261113b"></script>
 </body>
 </html>

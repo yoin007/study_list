@@ -13,6 +13,9 @@ import socket
 import threading
 import sqlite3
 import time
+import zipfile
+import tempfile
+import shutil
 from datetime import datetime, date, timedelta
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, g, session, Response, redirect, url_for, make_response
 
@@ -268,17 +271,18 @@ def init_db():
     cur = db.execute("SELECT COUNT(*) FROM children")
     if cur.fetchone()[0] == 0:
         db.execute("INSERT INTO children (name) VALUES (?)", ('宝贝',))
-        # 默认习惯任务
-        default_habits = [
-            ('h1', '阅读', 10, 'all'),
-            ('h2', '练字', 15, 'all'),
-            ('h3', '坐姿端正', 0, 'all'),
-            ('h4', '写字工整', 0, 'all'),
-            ('h5', '物品整理', 0, 'all'),
-        ]
-        for hid, name, mins, days in default_habits:
-            db.execute("INSERT INTO habits (id, child_id, name, minutes, days, enabled) VALUES (?, ?, ?, ?, ?, 1)",
-                       (hid, 1, name, mins, days))
+
+    # 默认习惯任务（始终确保存在，INSERT OR IGNORE 不重复）
+    default_habits = [
+        ('h1', '阅读', 10, 'all'),
+        ('h2', '练字', 15, 'all'),
+        ('h3', '坐姿端正', 0, 'all'),
+        ('h4', '写字工整', 0, 'all'),
+        ('h5', '物品整理', 0, 'all'),
+    ]
+    for hid, name, mins, days in default_habits:
+        db.execute("INSERT OR IGNORE INTO habits (id, child_id, name, minutes, days, enabled) VALUES (?, ?, ?, ?, ?, 1)",
+                   (hid, 1, name, mins, days))
 
     db.commit()
 
@@ -403,6 +407,51 @@ def calc_today_points(child_id, today_str):
 
 
 # ============ 自动备份 ============
+def _export_data_dict(db):
+    """从连接好的 db 导出完整数据字典（auto_backup 和手动导出共用）"""
+    return {
+        'children': [dict(r) for r in db.execute("SELECT * FROM children").fetchall()],
+        'tasks': [dict(r) for r in db.execute("SELECT * FROM tasks").fetchall()],
+        'mistakes': [dict(r) for r in db.execute("SELECT * FROM mistakes").fetchall()],
+        'note_types': [dict(r) for r in db.execute("SELECT * FROM note_types").fetchall()],
+        'notes': [dict(r) for r in db.execute("SELECT * FROM notes").fetchall()],
+        'note_attachments': [dict(r) for r in db.execute("SELECT * FROM note_attachments").fetchall()],
+        'app_data': [dict(r) for r in db.execute("SELECT * FROM app_data").fetchall()],
+        'daily_records': [dict(r) for r in db.execute("SELECT * FROM daily_records").fetchall()],
+        'habits': [dict(r) for r in db.execute("SELECT * FROM habits").fetchall()],
+        'habit_records': [dict(r) for r in db.execute("SELECT * FROM habit_records").fetchall()],
+        'points_records': [dict(r) for r in db.execute("SELECT * FROM points_records").fetchall()],
+        'attachments': [dict(r) for r in db.execute("SELECT * FROM attachments").fetchall()],
+        'settings': dict(db.execute("SELECT key, value FROM settings").fetchall()),
+        'backup_time': datetime.now().isoformat()
+    }
+
+
+def _cleanup_old_backups(keep_days=30):
+    """清理超过 keep_days 天的旧备份文件"""
+    try:
+        cutoff = date.today() - timedelta(days=keep_days)
+        removed = 0
+        for fname in os.listdir(BACKUP_DIR):
+            if not (fname.endswith('.json') or fname.endswith('.zip')):
+                continue
+            try:
+                datestr = fname.split('_', 1)[1].rsplit('.', 1)[0]
+                fdate = date.fromisoformat(datestr)
+            except Exception:
+                continue
+            if fdate < cutoff:
+                try:
+                    os.remove(os.path.join(BACKUP_DIR, fname))
+                    removed += 1
+                except Exception:
+                    pass
+        if removed:
+            print(f"清理 {removed} 个超过 {keep_days} 天的旧备份")
+    except Exception:
+        pass
+
+
 def auto_backup():
     today_str = date.today().isoformat()
     backup_file = os.path.join(BACKUP_DIR, f"auto_{today_str}.json")
@@ -411,20 +460,11 @@ def auto_backup():
     try:
         db = sqlite3.connect(DB_PATH)
         db.row_factory = sqlite3.Row
-        data = {
-            'children': [dict(r) for r in db.execute("SELECT * FROM children").fetchall()],
-            'tasks': [dict(r) for r in db.execute("SELECT * FROM tasks").fetchall()],
-            'mistakes': [dict(r) for r in db.execute("SELECT * FROM mistakes").fetchall()],
-            'note_types': [dict(r) for r in db.execute("SELECT * FROM note_types").fetchall()],
-            'notes': [dict(r) for r in db.execute("SELECT * FROM notes").fetchall()],
-            'note_attachments': [dict(r) for r in db.execute("SELECT * FROM note_attachments").fetchall()],
-            'app_data': [dict(r) for r in db.execute("SELECT * FROM app_data").fetchall()],
-            'settings': dict(db.execute("SELECT key, value FROM settings").fetchall()),
-            'backup_time': datetime.now().isoformat()
-        }
+        data = _export_data_dict(db)
+        db.close()
         with open(backup_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        db.close()
+        _cleanup_old_backups(30)
     except Exception as e:
         print(f"自动备份失败: {e}")
 
@@ -595,15 +635,20 @@ def scan_apps():
 
 @app.route('/apps')
 def apps_hub():
+    if not session.get('child_id'):
+        return redirect('/login')
     return render_template('apps.html', apps=scan_apps())
 
 
 @app.route('/apps/<slug>')
 def app_shell(slug):
+    cid = session.get('child_id')
+    if not cid:
+        return redirect('/login')
     app = next((a for a in scan_apps() if a['slug'] == slug), None)
     if not app:
         return render_template('apps.html', apps=scan_apps()), 404
-    return render_template('app_shell.html', app=app)
+    return render_template('app_shell.html', app=app, child_id=cid)
 
 
 @app.route('/api/apps')
@@ -2274,25 +2319,227 @@ def api_notes_due():
 # ============ API: 备份导出 ============
 @app.route('/api/backup/export')
 def api_backup_export():
-    child_id = get_child_id()
+    """手动导出：打包成 zip（data.json + attachments/）。
+    with_attachments=0 可以只导 JSON；默认带附件并更新 last_full_backup 时间。
+    每天保留一个，超过 30 天自动清理。"""
+    with_attachments = request.args.get('with_attachments', '1') == '1'
+
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
-    data = {
-        'children': [dict(r) for r in db.execute("SELECT * FROM children").fetchall()],
-        'tasks': [dict(r) for r in db.execute("SELECT * FROM tasks").fetchall()],
-        'mistakes': [dict(r) for r in db.execute("SELECT * FROM mistakes").fetchall()],
-        'note_types': [dict(r) for r in db.execute("SELECT * FROM note_types").fetchall()],
-        'notes': [dict(r) for r in db.execute("SELECT * FROM notes").fetchall()],
-        'note_attachments': [dict(r) for r in db.execute("SELECT * FROM note_attachments").fetchall()],
-        'app_data': [dict(r) for r in db.execute("SELECT * FROM app_data").fetchall()],
-        'settings': dict(db.execute("SELECT key, value FROM settings").fetchall()),
-        'backup_time': datetime.now().isoformat()
-    }
+    data = _export_data_dict(db)
     db.close()
-    backup_file = os.path.join(BACKUP_DIR, f"backup_{date.today().isoformat()}.json")
-    with open(backup_file, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    return send_file(backup_file, as_attachment=True)
+
+    tmp_dir = tempfile.mkdtemp(prefix='backup_')
+    try:
+        json_path = os.path.join(tmp_dir, 'data.json')
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        today_str = date.today().isoformat()
+        if with_attachments and os.path.isdir(ATTACH_DIR) and any(os.scandir(ATTACH_DIR)):
+            # 带附件 → zip
+            backup_file = os.path.join(BACKUP_DIR, f"backup_{today_str}.zip")
+            with zipfile.ZipFile(backup_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+                zf.write(json_path, 'data.json')
+                for root, dirs, files in os.walk(ATTACH_DIR):
+                    for fname in files:
+                        full = os.path.join(root, fname)
+                        arc = os.path.relpath(full, ATTACH_DIR)
+                        zf.write(full, os.path.join('attachments', arc))
+            # 记录时间戳
+            _update_full_backup_time()
+            filename = f"作业任务清单_backup_full_{today_str}.zip"
+        else:
+            # 不带附件 → 纯 JSON
+            backup_file = os.path.join(BACKUP_DIR, f"backup_{today_str}.json")
+            with open(json_path, encoding='utf-8') as sf, open(backup_file, 'w', encoding='utf-8') as df:
+                df.write(sf.read())
+            filename = f"作业任务清单_backup_{today_str}.json"
+
+        _cleanup_old_backups(30)
+        return send_file(backup_file, as_attachment=True, download_name=filename)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def _update_full_backup_time():
+    """写入最近一次带附件的完整备份时间戳"""
+    try:
+        db = sqlite3.connect(DB_PATH)
+        db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_full_backup', ?)",
+                   (datetime.now().isoformat(),))
+        db.commit()
+        db.close()
+    except Exception as e:
+        print(f"写入 last_full_backup 失败: {e}")
+
+
+@app.route('/api/backup/status')
+def api_backup_status():
+    """返回备份状态：上次完整带附件导出时间、距今天数、附件目录体积。"""
+    last_iso = None
+    days_since = None
+    try:
+        db = sqlite3.connect(DB_PATH)
+        row = db.execute("SELECT value FROM settings WHERE key='last_full_backup'").fetchone()
+        db.close()
+        if row and row[0]:
+            last_iso = row[0]
+            try:
+                last_dt = datetime.fromisoformat(last_iso)
+                days_since = (datetime.now() - last_dt).days
+            except Exception:
+                days_since = None
+    except Exception:
+        pass
+
+    attach_size_mb = 0
+    try:
+        if os.path.isdir(ATTACH_DIR):
+            total = 0
+            for root, _, files in os.walk(ATTACH_DIR):
+                for f in files:
+                    try:
+                        total += os.path.getsize(os.path.join(root, f))
+                    except OSError:
+                        pass
+            attach_size_mb = round(total / 1024 / 1024, 1)
+    except Exception:
+        pass
+
+    return jsonify({
+        'last_full_backup': last_iso,
+        'days_since': days_since,
+        'attachments_size_mb': attach_size_mb,
+        'need_warning': days_since is not None and days_since >= 10
+    })
+
+
+# ============ API: 备份恢复 ============
+@app.route('/api/backup/restore', methods=['POST'])
+def api_backup_restore():
+    """从上传的 JSON 或 zip 恢复。恢复前自动备份当前数据；zip 里有附件就一并写回。"""
+    # admin 守卫
+    if not session.get('is_admin'):
+        return jsonify({'error': '需要管理员权限'}), 403
+
+    file = request.files.get('file')
+    if not file:
+        return jsonify({'error': '未上传文件'}), 400
+
+    tmp_dir = tempfile.mkdtemp(prefix='restore_')
+    try:
+        # 保存上传的文件
+        upload_path = os.path.join(tmp_dir, file.filename or 'backup')
+        file.save(upload_path)
+
+        # 解析数据
+        data = None
+        attach_src = None
+        if zipfile.is_zipfile(upload_path):
+            with zipfile.ZipFile(upload_path) as zf:
+                # 找 data.json
+                json_members = [m for m in zf.namelist() if m.endswith('data.json')]
+                if not json_members:
+                    return jsonify({'error': 'zip 中未找到 data.json'}), 400
+                data = json.loads(zf.read(json_members[0]))
+                # 附件解压（zip 里 attachments/ 开头的文件）
+                attach_members = [m for m in zf.namelist()
+                                  if m.startswith('attachments/') and not m.endswith('/')]
+                if attach_members:
+                    attach_src = os.path.join(tmp_dir, 'attachments')
+                    for m in attach_members:
+                        target = os.path.join(tmp_dir, m)
+                        os.makedirs(os.path.dirname(target), exist_ok=True)
+                        with zf.open(m) as sf, open(target, 'wb') as df:
+                            shutil.copyfileobj(sf, df)
+        else:
+            # 纯 JSON
+            try:
+                with open(upload_path, encoding='utf-8') as f:
+                    data = json.load(f)
+            except Exception as e:
+                return jsonify({'error': f'无法解析 JSON: {e}'}), 400
+
+        if not isinstance(data, dict) or 'children' not in data:
+            return jsonify({'error': '备份文件格式不合法'}), 400
+
+        # 恢复前自动备份
+        auto_backup()
+
+        # 先确保 schema 完整（万一 DB 文件刚被重建）
+        with app.app_context():
+            init_db()
+
+        # 事务写回所有表
+        db = sqlite3.connect(DB_PATH)
+        db.execute('PRAGMA foreign_keys = OFF')  # 恢复场景临时关外键
+        try:
+            db.execute('BEGIN')
+            # 清库（清完再调 init_db 补默认习惯等种子数据）
+            tables = ('attachments', 'app_data', 'daily_records', 'habit_records',
+                      'note_attachments', 'notes', 'note_types', 'mistakes',
+                      'points_records', 'tasks', 'habits', 'children', 'settings')
+            for table in tables:
+                db.execute(f'DELETE FROM {table}')
+
+            def _insert(table, rows):
+                for r in rows:
+                    cols = ', '.join(r.keys())
+                    qs = ', '.join(['?'] * len(r))
+                    db.execute(f'INSERT INTO {table} ({cols}) VALUES ({qs})', list(r.values()))
+
+            for table, key in (
+                ('children', 'children'),
+                ('tasks', 'tasks'),
+                ('mistakes', 'mistakes'),
+                ('note_types', 'note_types'),
+                ('notes', 'notes'),
+                ('note_attachments', 'note_attachments'),
+                ('app_data', 'app_data'),
+                ('daily_records', 'daily_records'),
+                ('habits', 'habits'),
+                ('habit_records', 'habit_records'),
+                ('points_records', 'points_records'),
+                ('attachments', 'attachments'),
+            ):
+                _insert(table, data.get(key, []))
+
+            settings = data.get('settings', {})
+            if isinstance(settings, dict):
+                for k, v in settings.items():
+                    db.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?,?)', (k, v))
+
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+        # 清库后补默认习惯等种子数据（备份里可能没有 habits）
+        with app.app_context():
+            init_db()
+
+        # 写回附件（zip 里有的）
+        if attach_src and os.path.isdir(attach_src):
+            os.makedirs(ATTACH_DIR, exist_ok=True)
+            for fname in os.listdir(attach_src):
+                shutil.copy2(os.path.join(attach_src, fname), os.path.join(ATTACH_DIR, fname))
+
+        _cleanup_old_backups(30)
+        return jsonify({
+            'success': True,
+            'children': len(data.get('children', [])),
+            'tasks': len(data.get('tasks', [])),
+            'notes': len(data.get('notes', [])),
+            'app_data': len(data.get('app_data', [])),
+            'daily_records': len(data.get('daily_records', []))
+        })
+    except Exception as e:
+        return jsonify({'error': f'恢复失败: {e}'}), 500
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 # ============ 启动 ============

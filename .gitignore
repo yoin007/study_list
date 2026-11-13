@@ -39,3 +39,4 @@ Thumbs.db
 # ========== TRAE IDE 工作目录（插件数据/会话缓存） ==========
 .trae-html-share-packages/
 .trae/
+static/apps/hanzi/data/*.json

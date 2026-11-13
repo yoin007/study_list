@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#4A90D9">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/static/css/style.css?v=20261112">
+<link rel="stylesheet" href="/static/css/style.css?v=20261113">
 <style>
     html, body { height: 100%; }
     body {
@@ -67,7 +67,7 @@
     <a href="/apps" class="active"><span class="icon">🧩</span>应用</a>
 </div>
 
-<script src="/static/js/common.js"></script>
+<script src="/static/js/common.js?v=20261113b"></script>
 <script>
 (function () {
     var APP = {
@@ -75,12 +75,12 @@
         url: {{ app.url|tojson }},
         sync: {{ (1 if app.sync else 0)|tojson }},
         keys: {{ app.syncKeys|tojson }},
-        prefixes: {{ app.syncPrefixes|tojson }}
+        prefixes: {{ app.syncPrefixes|tojson }},
+        childId: {{ child_id|tojson }}
     };
-    var SHADOW = 'appSyncTs.' + APP.slug;   // 本机记录的服务端时间戳（用于判断谁更新）
+    var NS = APP.childId + '::';
     var frame = document.getElementById('appFrame');
     var tipEl = document.getElementById('syncTip');
-    var lastSnap = '';
 
     function toast(msg) {
         if (!tipEl) return;
@@ -89,35 +89,41 @@
         setTimeout(function () { tipEl.classList.remove('show'); }, 1600);
     }
 
-    // 收集本应用声明要同步的 localStorage 项
+    // —— 辅助：key 是否在同步声明里 ——
+    function isDeclared(k) {
+        return APP.keys.indexOf(k) >= 0 ||
+               APP.prefixes.some(function (p) { return k.indexOf(p) === 0; });
+    }
+
+    // —— 顶层 window 下 localStorage 的命名空间操作（外壳自己用）——
+    function realSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+    function realGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+    // 收集本应用声明 + 当前孩子命名空间下的 localStorage 项（key 去掉 NS 前缀返回）
     function collect() {
         var out = {};
         try {
+            var all = [];
             for (var i = 0; i < localStorage.length; i++) {
-                var k = localStorage.key(i);
-                if (APP.keys.indexOf(k) >= 0 ||
-                    APP.prefixes.some(function (p) { return k.indexOf(p) === 0; })) {
-                    out[k] = localStorage.getItem(k);
+                all.push(localStorage.key(i));
+            }
+            for (var j = 0; j < all.length; j++) {
+                var rk = all[j];
+                if (rk.indexOf(NS) !== 0) continue;            // 只看当前孩子的
+                var bare = rk.substring(NS.length);            // 去掉孩子前缀
+                if (isDeclared(bare)) {
+                    out[bare] = localStorage.getItem(rk);
                 }
             }
         } catch (e) {}
         return out;
     }
 
-    function localTs() {
-        return parseInt(localStorage.getItem(SHADOW) || '0', 10) || 0;
-    }
-    function markSynced(ts) {
-        if (ts) localStorage.setItem(SHADOW, ts);
-    }
-
-    // 把服务端数据写回 localStorage（值若是字符串则原样写入）
+    // 把服务端原始 key 写入当前孩子的 localStorage 命名空间
     function applyServer(keys) {
-        Object.keys(keys).forEach(function (k) {
-            var v = keys[k];
-            try {
-                localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
-            } catch (e) {}
+        Object.keys(keys).forEach(function (bare) {
+            var v = keys[bare];
+            realSet(NS + bare, typeof v === 'string' ? v : JSON.stringify(v));
         });
     }
 
@@ -128,60 +134,239 @@
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keys: keys })
-        }).then(function (r) { return r.json(); }).then(function (d) {
-            if (d && d.updated_at) markSynced(d.updated_at);
-        }).catch(function () {});
+        }).then(function (r) { return r.json(); }).catch(function () {});
     }
 
-    // 加载前：服务端较新则覆盖本机，否则把本机数据推上去
+    // —— 写穿模式：应用每次写入声明 key 后，防抖合并立即推送服务端入库 ——
+    var pushTimer = null;
+    function schedulePush() {
+        if (pushTimer) return;
+        pushTimer = setTimeout(function () {
+            pushTimer = null;
+            push();
+        }, 500);
+    }
+
+    // —— 劫持 iframe 的 localStorage：应用写"hanziReaderDB.v2" → 实际写"<NS>hanziReaderDB.v2" ——
+    function patchIframeStorage() {
+        try {
+            var w = frame.contentWindow;
+            if (!w || !w.localStorage) return;
+            var store = w.localStorage;
+            var origGetItem  = store.getItem.bind(store);
+            var origSetItem  = store.setItem.bind(store);
+            var origRemoveItem = store.removeItem.bind(store);
+            var origKey      = store.key.bind(store);
+            var origClear    = store.clear.bind(store);
+
+            store.getItem = function (k) {
+                return origGetItem(NS + k);
+            };
+            store.setItem = function (k, v) {
+                origSetItem(NS + k, v);
+                if (isDeclared(k)) schedulePush();   // 写穿：改动立即入库
+            };
+            store.removeItem = function (k) {
+                origRemoveItem(NS + k);
+                if (isDeclared(k)) schedulePush();
+            };
+            store.key = function (i) {
+                var count = 0;
+                for (var j = 0; j < origKey.length; j++) {
+                    var rk = origKey(j);
+                    if (rk && rk.indexOf(NS) === 0) {
+                        if (count === i) return rk.substring(NS.length);
+                        count++;
+                    }
+                }
+                return null;
+            };
+            try {
+                Object.defineProperty(store, 'length', {
+                    get: function () {
+                        var n = 0;
+                        for (var j = 0; j < origKey.length; j++) {
+                            if (origKey(j) && origKey(j).indexOf(NS) === 0) n++;
+                        }
+                        return n;
+                    }
+                });
+            } catch (e) {}
+            store.clear = function () {
+                var toDel = [];
+                for (var j = 0; j < origKey.length; j++) {
+                    var rk = origKey(j);
+                    if (rk && rk.indexOf(NS) === 0) toDel.push(rk);
+                }
+                for (var d = 0; d < toDel.length; d++) origRemoveItem(toDel[d]);
+            };
+        } catch (e) {
+            // 跨域或极端情况，降级不劫持
+        }
+    }
+
+    // —— 老数据迁移 + 合并：无前缀原始 key（单网页版遗留）→ 当前孩子命名空间 ——
+    function mergeValInto(targetKey, sourceVal) {
+        // 尝试 JSON 合并：如果 source 有 entries 而 target 的 entries 为空/更少，用 source 覆盖
+        var targetStr = realGet(targetKey);
+        if (!targetStr) {
+            realSet(targetKey, sourceVal);
+            return true;
+        }
+        try {
+            var src = JSON.parse(sourceVal);
+            var tgt = JSON.parse(targetStr);
+            var srcEntries = (src && src.entries && src.entries.length) || 0;
+            var tgtEntries = (tgt && tgt.entries && tgt.entries.length) || 0;
+            if (srcEntries > tgtEntries) {
+                realSet(targetKey, sourceVal);
+                return true;
+            }
+        } catch (e) {}
+        return false;
+    }
+
+    function migrateLegacy() {
+        var migrated = {};
+        try {
+            var scan = [];
+            for (var i = 0; i < localStorage.length; i++) scan.push(localStorage.key(i));
+            for (var j = 0; j < scan.length; j++) {
+                var rk = scan[j];
+                if (rk.indexOf('::') >= 0) continue;
+                if (!isDeclared(rk)) continue;
+                var val = localStorage.getItem(rk);
+                var targetKey = NS + rk;
+                if (mergeValInto(targetKey, val)) {
+                    migrated[rk] = val;
+                }
+            }
+        } catch (e) {}
+        if (Object.keys(migrated).length > 0) {
+            toast('📦 检测到旧数据，已迁移到当前孩子');
+        }
+    }
+
+    // 加载前：先迁移老数据 → 拉服务端（合并而非覆盖）→ 再次迁移（处理服务端空壳覆盖）→ 回写
     function boot() {
         if (!APP.sync) {
             loadFrame();
             return;
         }
+        migrateLegacy();
+
         fetch('/api/apps/' + APP.slug + '/data')
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 var serverKeys = (d && d.keys) || {};
-                var serverTs = (d && d.updated_at) || '';
-                var hasServer = Object.keys(serverKeys).length > 0;
-                var hasLocal = Object.keys(collect()).length > 0;
-                if (hasServer && (!hasLocal || serverTs > localTs())) {
-                    applyServer(serverKeys);
-                    markSynced(serverTs);
-                    toast('已同步云端数据');
-                } else if (hasLocal && !hasServer) {
-                    push().then(function () { toast('本机数据已上传'); });
-                }
+                // 合并策略：谁 entries 多信谁（服务端可能是空壳，本机可能有老数据迁移过来的）
+                Object.keys(serverKeys).forEach(function (bare) {
+                    var v = serverKeys[bare];
+                    var str = typeof v === 'string' ? v : JSON.stringify(v);
+                    mergeValInto(NS + bare, str);
+                });
+                // 再跑一次迁移：如果 applyServer 覆盖了本机数据，无前缀 key 还能救回来
+                migrateLegacy();
                 loadFrame();
+                push();   // 回写最终一致状态
             })
-            .catch(loadFrame);
+            .catch(function () {
+                migrateLegacy();
+                loadFrame();
+                push();
+            });
     }
 
     function loadFrame() {
-        frame.src = APP.url;
-        lastSnap = JSON.stringify(collect());
-        if (APP.sync) {
-            setInterval(function () {
-                var snap = JSON.stringify(collect());
-                if (snap !== lastSnap) {
-                    lastSnap = snap;
-                    push();
+        patchIframeStorage();   // 先劫持 iframe（挂钩写穿推送）再给 src
+        frame.src = APP.url + '?v=20261113b';
+        // iframe 加载完后覆盖"本地数据"UI：hanzi 的 updateFileUI 在 IIFE 里，劫持不到
+        // 所以直接 DOM 覆盖 + MutationObserver 防止被 hanzi 改回去
+        frame.onload = function () {
+            waitHanziDomReady(function () {
+                var idoc = frame.contentDocument;
+                overrideLocalDataUIDom(idoc);
+                // 监听 hanzi 是否把我们覆盖的元素又改回旧文案（updateFileUI 在 IIFE 内部调用）
+                watchHanziLocalDataUI(idoc);
+            });
+        };
+    }
+
+    // 轮询等 hanzi 的本地数据相关 DOM 出现（hanzi IIFE 执行完才会渲染）
+    function waitHanziDomReady(cb) {
+        var tries = 0;
+        var timer = setInterval(function () {
+            tries++;
+            try {
+                var idoc = frame.contentDocument;
+                if (idoc && idoc.getElementById('dataSource')) {
+                    clearInterval(timer);
+                    cb();
                 }
-            }, 4000);
-            window.addEventListener('pagehide', function () {
-                var keys = collect();
-                if (Object.keys(keys).length) {
-                    try {
-                        var blob = new Blob([JSON.stringify({ keys: keys })],
-                            { type: 'application/json' });
-                        // 尽量在页面卸载前发出
-                        navigator.sendBeacon &&
-                            navigator.sendBeacon('/api/apps/' + APP.slug + '/data', blob);
-                    } catch (e) {}
+            } catch (e) {}
+            if (tries > 60) clearInterval(timer);   // 等 6 秒还没出现就放弃
+        }, 100);
+    }
+
+    // 直接 DOM 覆盖：把 File System Access API 文案全改成云端同步
+    function overrideLocalDataUIDom(idoc) {
+        try {
+            // 1. 标题右侧状态标签
+            var ds = idoc.getElementById('dataSource');
+            if (ds) ds.textContent = '🔗 云端同步';
+
+            // 2. 副标题（原来讲同目录 JSON 文件的）——用 dataSource 所在 card 定位
+            var dsCard = ds ? ds.closest('.card') : null;
+            var sub = dsCard ? dsCard.querySelector('.sub') : null;
+            if (sub && sub.textContent.indexOf('默认数据文件') >= 0) {
+                sub.textContent = '字库、错题本、练习记录自动保存在云端服务器，换设备、清浏览器缓存都不丢。';
+            }
+
+            // 3. file-banner 横幅
+            var fb = idoc.getElementById('fileBanner');
+            if (fb) fb.classList.add('ok');
+            var tip = idoc.getElementById('fileBannerText');
+            if (tip) tip.innerHTML = '<b>✅ 云端同步已启用</b><br>数据每次改动自动写入服务器，多设备共享。';
+
+            // 4. 隐藏选择文件按钮（云端不需要选文件）
+            var bindBtn = idoc.getElementById('bindBtn');
+            if (bindBtn) bindBtn.style.display = 'none';
+
+            // 5. 隐藏"新建/另存数据文件"按钮（云端不需要）
+            var newFileBtn = idoc.getElementById('newFileBtn');
+            if (newFileBtn) newFileBtn.style.display = 'none';
+
+            // 6. 改导入/导出/清空按钮文字
+            var importBtn = idoc.getElementById('importBtn');
+            if (importBtn) importBtn.textContent = '⬆ 导入 JSON（旧数据迁移用）';
+            var exportBtn = idoc.getElementById('exportBtn');
+            if (exportBtn) exportBtn.textContent = '⬇ 导出云端数据备份';
+            var clearDataBtn = idoc.getElementById('clearDataBtn');
+            if (clearDataBtn) clearDataBtn.textContent = '🗑 清空云端全部数据';
+
+        } catch (e) {}
+    }
+
+    // 监听 hanzi 是否把我们覆盖的元素又改回旧文案
+    function watchHanziLocalDataUI(idoc) {
+        try {
+            var observer = new MutationObserver(function (mutations) {
+                // 只要 dataSource 或 fileBannerText 的 textContent 被改了，就再覆盖回来
+                var ds = idoc.getElementById('dataSource');
+                if (ds && ds.textContent.indexOf('暂存') >= 0) ds.textContent = '🔗 云端同步';
+                var tip = idoc.getElementById('fileBannerText');
+                if (tip && tip.textContent.indexOf('同目录') >= 0) {
+                    tip.innerHTML = '<b>✅ 云端同步已启用</b><br>数据每次改动自动写入服务器，多设备共享。';
+                }
+                var subCard = ds ? ds.closest('.card') : null;
+                var sub = subCard ? subCard.querySelector('.sub') : null;
+                if (sub && sub.textContent.indexOf('默认数据文件') >= 0) {
+                    sub.textContent = '字库、错题本、练习记录自动保存在云端服务器，换设备、清浏览器缓存都不丢。';
                 }
             });
-        }
+            // 观察整文档，但只关心 textContent 变化
+            observer.observe(idoc.body, { childList: true, subtree: true, characterData: true });
+        } catch (e) {}
     }
 
     boot();
