@@ -1,0 +1,11 @@
+{
+  "slug": "english",
+  "name": "英语单词",
+  "icon": "A",
+  "desc": "外研版一年级起点 · 按 Module 选词 · 听音选词 · 拼写 · 字母排序",
+  "color": "#2f6f9e",
+  "entry": "index.html",
+  "sync": true,
+  "syncKeys": ["englishDB.v1"],
+  "order": 20
+}

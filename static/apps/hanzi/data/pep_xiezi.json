@@ -26,14 +26,14 @@
       "strokes": 3
     },
     {
-      "char": "目",
-      "pinyin": "mù",
-      "strokes": 5
-    },
-    {
       "char": "耳",
       "pinyin": "ěr",
       "strokes": 6
+    },
+    {
+      "char": "目",
+      "pinyin": "mù",
+      "strokes": 5
     },
     {
       "char": "手",
@@ -43,6 +43,11 @@
     {
       "char": "日",
       "pinyin": "rì",
+      "strokes": 4
+    },
+    {
+      "char": "火",
+      "pinyin": "huǒ",
       "strokes": 4
     },
     {
@@ -56,24 +61,14 @@
       "strokes": 5
     },
     {
-      "char": "火",
-      "pinyin": "huǒ",
+      "char": "六",
+      "pinyin": "liù",
       "strokes": 4
     },
     {
-      "char": "虫",
-      "pinyin": "chóng、huǐ",
-      "strokes": 6
-    },
-    {
-      "char": "云",
-      "pinyin": "yún",
-      "strokes": 4
-    },
-    {
-      "char": "山",
-      "pinyin": "shān",
-      "strokes": 3
+      "char": "七",
+      "pinyin": "qī",
+      "strokes": 2
     },
     {
       "char": "八",
@@ -86,6 +81,36 @@
       "strokes": 2
     },
     {
+      "char": "九",
+      "pinyin": "jiǔ",
+      "strokes": 2
+    },
+    {
+      "char": "王",
+      "pinyin": "wáng、wàng",
+      "strokes": 4
+    },
+    {
+      "char": "午",
+      "pinyin": "wǔ",
+      "strokes": 4
+    },
+    {
+      "char": "下",
+      "pinyin": "xià",
+      "strokes": 3
+    },
+    {
+      "char": "去",
+      "pinyin": "qù",
+      "strokes": 5
+    },
+    {
+      "char": "年",
+      "pinyin": "nián",
+      "strokes": 6
+    },
+    {
       "char": "了",
       "pinyin": "liǎo、le",
       "strokes": 2
@@ -96,13 +121,223 @@
       "strokes": 3
     },
     {
+      "char": "大",
+      "pinyin": "dà、dài、tài",
+      "strokes": 3
+    },
+    {
       "char": "人",
       "pinyin": "rén",
       "strokes": 2
     },
     {
-      "char": "大",
-      "pinyin": "dà、dài、tài",
+      "char": "可",
+      "pinyin": "kě、kè",
+      "strokes": 5
+    },
+    {
+      "char": "叶",
+      "pinyin": "yè、xié",
+      "strokes": 5
+    },
+    {
+      "char": "东",
+      "pinyin": "dōng",
+      "strokes": 5
+    },
+    {
+      "char": "西",
+      "pinyin": "xī",
+      "strokes": 6
+    },
+    {
+      "char": "竹",
+      "pinyin": "zhú",
+      "strokes": 6
+    },
+    {
+      "char": "马",
+      "pinyin": "mǎ",
+      "strokes": 3
+    },
+    {
+      "char": "牙",
+      "pinyin": "yá",
+      "strokes": 4
+    },
+    {
+      "char": "用",
+      "pinyin": "yòng",
+      "strokes": 5
+    },
+    {
+      "char": "几",
+      "pinyin": "jī、jǐ",
+      "strokes": 2
+    },
+    {
+      "char": "四",
+      "pinyin": "sì",
+      "strokes": 5
+    },
+    {
+      "char": "小",
+      "pinyin": "xiǎo",
+      "strokes": 3
+    },
+    {
+      "char": "鸟",
+      "pinyin": "niǎo",
+      "strokes": 5
+    },
+    {
+      "char": "是",
+      "pinyin": "shì",
+      "strokes": 9
+    },
+    {
+      "char": "天",
+      "pinyin": "tiān",
+      "strokes": 4
+    },
+    {
+      "char": "女",
+      "pinyin": "nǚ、rǔ",
+      "strokes": 3
+    },
+    {
+      "char": "开",
+      "pinyin": "kāi",
+      "strokes": 4
+    },
+    {
+      "char": "关",
+      "pinyin": "guān",
+      "strokes": 6
+    },
+    {
+      "char": "先",
+      "pinyin": "xiān",
+      "strokes": 6
+    },
+    {
+      "char": "云",
+      "pinyin": "yún",
+      "strokes": 4
+    },
+    {
+      "char": "雨",
+      "pinyin": "yǔ、yù",
+      "strokes": 8
+    },
+    {
+      "char": "虫",
+      "pinyin": "chóng、huǐ",
+      "strokes": 6
+    },
+    {
+      "char": "山",
+      "pinyin": "shān",
+      "strokes": 3
+    },
+    {
+      "char": "水",
+      "pinyin": "shuǐ",
+      "strokes": 4
+    },
+    {
+      "char": "力",
+      "pinyin": "lì",
+      "strokes": 2
+    },
+    {
+      "char": "男",
+      "pinyin": "nán",
+      "strokes": 7
+    },
+    {
+      "char": "土",
+      "pinyin": "tǔ",
+      "strokes": 3
+    },
+    {
+      "char": "木",
+      "pinyin": "mù",
+      "strokes": 4
+    },
+    {
+      "char": "心",
+      "pinyin": "xīn",
+      "strokes": 4
+    },
+    {
+      "char": "尺",
+      "pinyin": "chǐ、chě",
+      "strokes": 4
+    },
+    {
+      "char": "本",
+      "pinyin": "běn",
+      "strokes": 5
+    },
+    {
+      "char": "刀",
+      "pinyin": "dāo",
+      "strokes": 2
+    },
+    {
+      "char": "不",
+      "pinyin": "bù、fǒu",
+      "strokes": 4
+    },
+    {
+      "char": "少",
+      "pinyin": "shǎo、shào",
+      "strokes": 4
+    },
+    {
+      "char": "中",
+      "pinyin": "zhōng、zhòng",
+      "strokes": 4
+    },
+    {
+      "char": "五",
+      "pinyin": "wǔ",
+      "strokes": 4
+    },
+    {
+      "char": "风",
+      "pinyin": "fēng",
+      "strokes": 4
+    },
+    {
+      "char": "立",
+      "pinyin": "lì",
+      "strokes": 5
+    },
+    {
+      "char": "正",
+      "pinyin": "zhèng、zhēng",
+      "strokes": 5
+    },
+    {
+      "char": "工",
+      "pinyin": "gōng",
+      "strokes": 3
+    },
+    {
+      "char": "厂",
+      "pinyin": "chǎng、ān、yǎn、hǎn",
+      "strokes": 2
+    },
+    {
+      "char": "门",
+      "pinyin": "mén",
+      "strokes": 3
+    },
+    {
+      "char": "卫",
+      "pinyin": "wèi",
       "strokes": 3
     },
     {
@@ -126,168 +361,13 @@
       "strokes": 7
     },
     {
-      "char": "可",
-      "pinyin": "kě、kè",
-      "strokes": 5
-    },
-    {
-      "char": "东",
-      "pinyin": "dōng",
-      "strokes": 5
-    },
-    {
-      "char": "西",
-      "pinyin": "xī",
-      "strokes": 6
-    },
-    {
-      "char": "天",
-      "pinyin": "tiān",
+      "char": "见",
+      "pinyin": "jiàn、xiàn",
       "strokes": 4
-    },
-    {
-      "char": "四",
-      "pinyin": "sì",
-      "strokes": 5
-    },
-    {
-      "char": "是",
-      "pinyin": "shì",
-      "strokes": 9
-    },
-    {
-      "char": "女",
-      "pinyin": "nǚ、rǔ",
-      "strokes": 3
-    },
-    {
-      "char": "开",
-      "pinyin": "kāi",
-      "strokes": 4
-    },
-    {
-      "char": "水",
-      "pinyin": "shuǐ",
-      "strokes": 4
-    },
-    {
-      "char": "去",
-      "pinyin": "qù",
-      "strokes": 5
-    },
-    {
-      "char": "来",
-      "pinyin": "lái",
-      "strokes": 7
-    },
-    {
-      "char": "不",
-      "pinyin": "bù、fǒu",
-      "strokes": 4
-    },
-    {
-      "char": "小",
-      "pinyin": "xiǎo",
-      "strokes": 3
-    },
-    {
-      "char": "少",
-      "pinyin": "shǎo、shào",
-      "strokes": 4
-    },
-    {
-      "char": "牛",
-      "pinyin": "niú",
-      "strokes": 4
-    },
-    {
-      "char": "果",
-      "pinyin": "guǒ",
-      "strokes": 8
-    },
-    {
-      "char": "鸟",
-      "pinyin": "niǎo",
-      "strokes": 5
-    },
-    {
-      "char": "早",
-      "pinyin": "zǎo",
-      "strokes": 6
-    },
-    {
-      "char": "书",
-      "pinyin": "shū",
-      "strokes": 4
-    },
-    {
-      "char": "刀",
-      "pinyin": "dāo",
-      "strokes": 2
-    },
-    {
-      "char": "尺",
-      "pinyin": "chǐ、chě",
-      "strokes": 4
-    },
-    {
-      "char": "本",
-      "pinyin": "běn",
-      "strokes": 5
-    },
-    {
-      "char": "木",
-      "pinyin": "mù",
-      "strokes": 4
-    },
-    {
-      "char": "林",
-      "pinyin": "lín",
-      "strokes": 8
-    },
-    {
-      "char": "土",
-      "pinyin": "tǔ",
-      "strokes": 3
-    },
-    {
-      "char": "力",
-      "pinyin": "lì",
-      "strokes": 2
-    },
-    {
-      "char": "心",
-      "pinyin": "xīn",
-      "strokes": 4
-    },
-    {
-      "char": "中",
-      "pinyin": "zhōng、zhòng",
-      "strokes": 4
-    },
-    {
-      "char": "五",
-      "pinyin": "wǔ",
-      "strokes": 4
-    },
-    {
-      "char": "立",
-      "pinyin": "lì",
-      "strokes": 5
-    },
-    {
-      "char": "正",
-      "pinyin": "zhèng、zhēng",
-      "strokes": 5
     },
     {
       "char": "在",
       "pinyin": "zài",
-      "strokes": 6
-    },
-    {
-      "char": "后",
-      "pinyin": "hòu",
       "strokes": 6
     },
     {
@@ -296,14 +376,44 @@
       "strokes": 7
     },
     {
-      "char": "好",
-      "pinyin": "hǎo、hào",
-      "strokes": 6
+      "char": "左",
+      "pinyin": "zuǒ",
+      "strokes": 5
     },
     {
-      "char": "长",
-      "pinyin": "cháng、zhǎng",
-      "strokes": 4
+      "char": "右",
+      "pinyin": "yòu",
+      "strokes": 5
+    },
+    {
+      "char": "和",
+      "pinyin": "hé、hè、huó、huò、hú",
+      "strokes": 8
+    },
+    {
+      "char": "也",
+      "pinyin": "yě",
+      "strokes": 3
+    },
+    {
+      "char": "又",
+      "pinyin": "yòu",
+      "strokes": 2
+    },
+    {
+      "char": "才",
+      "pinyin": "cái",
+      "strokes": 3
+    },
+    {
+      "char": "爸",
+      "pinyin": "bà",
+      "strokes": 8
+    },
+    {
+      "char": "妈",
+      "pinyin": "mā",
+      "strokes": 6
     },
     {
       "char": "比",
@@ -316,14 +426,19 @@
       "strokes": 4
     },
     {
-      "char": "把",
-      "pinyin": "bǎ、bà",
-      "strokes": 7
+      "char": "长",
+      "pinyin": "cháng、zhǎng",
+      "strokes": 4
     },
     {
-      "char": "下",
-      "pinyin": "xià",
-      "strokes": 3
+      "char": "公",
+      "pinyin": "gōng",
+      "strokes": 4
+    },
+    {
+      "char": "只",
+      "pinyin": "zhī、zhǐ",
+      "strokes": 5
     },
     {
       "char": "个",
@@ -331,129 +446,9 @@
       "strokes": 3
     },
     {
-      "char": "雨",
-      "pinyin": "yǔ、yù",
-      "strokes": 8
-    },
-    {
-      "char": "们",
-      "pinyin": "mén",
-      "strokes": 5
-    },
-    {
-      "char": "问",
-      "pinyin": "wèn",
+      "char": "多",
+      "pinyin": "duō",
       "strokes": 6
-    },
-    {
-      "char": "有",
-      "pinyin": "yǒu、yòu",
-      "strokes": 6
-    },
-    {
-      "char": "半",
-      "pinyin": "bàn",
-      "strokes": 5
-    },
-    {
-      "char": "从",
-      "pinyin": "cóng、zòng",
-      "strokes": 4
-    },
-    {
-      "char": "你",
-      "pinyin": "nǐ",
-      "strokes": 7
-    },
-    {
-      "char": "才",
-      "pinyin": "cái",
-      "strokes": 3
-    },
-    {
-      "char": "明",
-      "pinyin": "míng",
-      "strokes": 8
-    },
-    {
-      "char": "同",
-      "pinyin": "tóng、tòng",
-      "strokes": 6
-    },
-    {
-      "char": "学",
-      "pinyin": "xué",
-      "strokes": 8
-    },
-    {
-      "char": "自",
-      "pinyin": "zì",
-      "strokes": 6
-    },
-    {
-      "char": "己",
-      "pinyin": "jǐ",
-      "strokes": 3
-    },
-    {
-      "char": "门",
-      "pinyin": "mén",
-      "strokes": 3
-    },
-    {
-      "char": "衣",
-      "pinyin": "yī",
-      "strokes": 6
-    },
-    {
-      "char": "白",
-      "pinyin": "bái",
-      "strokes": 5
-    },
-    {
-      "char": "的",
-      "pinyin": "dí、dì、de、dī",
-      "strokes": 8
-    },
-    {
-      "char": "又",
-      "pinyin": "yòu",
-      "strokes": 2
-    },
-    {
-      "char": "和",
-      "pinyin": "hé、hè、huó、huò、hú",
-      "strokes": 8
-    },
-    {
-      "char": "竹",
-      "pinyin": "zhú",
-      "strokes": 6
-    },
-    {
-      "char": "牙",
-      "pinyin": "yá",
-      "strokes": 4
-    },
-    {
-      "char": "马",
-      "pinyin": "mǎ",
-      "strokes": 3
-    },
-    {
-      "char": "用",
-      "pinyin": "yòng",
-      "strokes": 5
-    },
-    {
-      "char": "几",
-      "pinyin": "jī、jǐ",
-      "strokes": 2
-    },
-    {
-      "char": "只",
-      "pinyin": "zhī、zhǐ",
-      "strokes": 5
     },
     {
       "char": "石",
@@ -466,39 +461,44 @@
       "strokes": 5
     },
     {
-      "char": "见",
-      "pinyin": "jiàn、xiàn",
-      "strokes": 4
+      "char": "来",
+      "pinyin": "lái",
+      "strokes": 7
     },
     {
-      "char": "对",
-      "pinyin": "duì",
+      "char": "半",
+      "pinyin": "bàn",
       "strokes": 5
     },
     {
-      "char": "妈",
-      "pinyin": "mā",
+      "char": "你",
+      "pinyin": "nǐ",
+      "strokes": 7
+    },
+    {
+      "char": "有",
+      "pinyin": "yǒu、yòu",
       "strokes": 6
     },
     {
-      "char": "全",
-      "pinyin": "quán",
+      "char": "牛",
+      "pinyin": "niú",
+      "strokes": 4
+    },
+    {
+      "char": "羊",
+      "pinyin": "yáng",
       "strokes": 6
     },
     {
-      "char": "回",
-      "pinyin": "huí",
-      "strokes": 6
+      "char": "果",
+      "pinyin": "guǒ",
+      "strokes": 8
     },
     {
-      "char": "工",
-      "pinyin": "gōng",
-      "strokes": 3
-    },
-    {
-      "char": "厂",
-      "pinyin": "chǎng、ān、yǎn、hǎn",
-      "strokes": 2
+      "char": "白",
+      "pinyin": "bái",
+      "strokes": 5
     }
   ],
   "1下": [

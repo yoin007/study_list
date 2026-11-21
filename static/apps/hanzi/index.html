@@ -6,7 +6,7 @@
 <title>汉字随机认读 · 家长小助手</title>
 <style>
   :root{
-    --bg:#f8f6f1; --card:#fff; --ink:#2f3437; --ink-soft:#7b8288; --line:#ece7de;
+    --bg:#f6f2e9; --card:#fffdf8; --ink:#2f3437; --ink-soft:#7d766b; --line:#e9e2d6;
     --red:#d9603f; --red-soft:#fdf0eb; --green:#3f8f7a; --grid:#e7c9ae;
     --shadow:0 8px 28px rgba(90,74,56,.08);
   }
@@ -42,8 +42,7 @@
   .lbl-short{display:none}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:22px;
-    box-shadow:var(--shadow);padding:20px 22px;margin-bottom:16px}
-  .head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+    box-shadow:var(--shadow);padding:20px 22px;margin-bottom:16px}  .head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
   .step{width:24px;height:24px;flex:none;border-radius:8px;background:var(--red-soft);
     color:var(--red);font-size:13px;font-weight:700;display:grid;place-items:center}
   .head h2{font-size:16px;margin:0;font-weight:600}
@@ -82,6 +81,9 @@
   .chip{min-width:28px;height:28px;padding:0 5px;border-radius:8px;background:#f7f4ee;display:grid;
     place-items:center;font-size:15px;color:#5c6165;font-family:"Kaiti SC","STKaiti","KaiTi",serif}
   .chip.more{background:none;color:var(--ink-soft);font-size:12px;font-family:inherit}
+  .btn.danger{background:#fff;color:#b8443a;border:1.5px solid #eec9c1}
+  .btn.danger:hover{background:#fdf2ef}
+  .btn.danger.armed{background:#b8443a;color:#fff;border-color:#b8443a}
 
   .filters{display:flex;flex-wrap:wrap;gap:8px}
   .quickbar{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
@@ -566,6 +568,7 @@
         <button class="btn primary" id="drawBtn" type="button">🎲 随机挑一个</button>
         <button class="btn secondary" id="pinyinBtn" type="button">显示拼音</button>
         <button class="btn ghost" id="strokeBtn" type="button">✍️ 笔顺动画</button>
+        <button class="btn ghost" id="quizBtn" type="button">✍️ 笔顺闯关</button>
       </div>
       <div class="writer-tools hidden" id="writerTools">
         <span id="strokeInfo"></span>
@@ -591,7 +594,10 @@
           <div class="stat"><b id="statOverdue">0</b><span>已逾期</span></div>
           <div class="stat"><b id="statMastered">0</b><span>已掌握</span></div>
         </div>
-        <button class="btn primary" id="wrongStartBtn" type="button">▶ 开始复习今日到期错字</button>
+        <div class="add-row" style="margin-top:12px">
+          <button class="btn primary small" id="wrongStartBtn" type="button">▶ 开始复习今日到期错字</button>
+          <button class="btn danger small" id="clearWrongBtn" type="button">清空错题本</button>
+        </div>
       </div>
       <div class="card">
         <div class="head"><span class="step">2</span><h2>错字列表</h2>
@@ -1314,6 +1320,7 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
       var meta = document.createElement('div'); meta.className = 'meta';
       var stage = Math.min(m.stage + 1, INTERVALS.length);
       meta.innerHTML = '错 ' + m.wrongCount + ' 次 · 下次 ' + (m.mastered ? '—' : esc(shortDate(m.due))) +
+        (m.stroke ? ' · 笔顺' : '') +
         '<div class="mem-label">' + (m.mastered ? '已掌握' :
           '记住进度 ' + stage + ' / ' + INTERVALS.length + ' 轮') + '</div>' +
         '<div class="mem-track"><div class="mem-fill" style="width:' +
@@ -1359,16 +1366,20 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
   var bag = [], roundChars = [], roundDone = [], roundFinished = false;
   var reviewQueue = [], reviewIndex = -1, reviewTotal = 0, reviewDone = false;
   var writer = null, strokeMode = false, strokeCache = {};
+  var quizMode = false, quizWriter = null, quizState = null;
+  var QUIZ_LENIENCY = 1.3, QUIZ_HINT_AFTER = 3;
   var warnedNoZhVoice = false;
   var PLACEHOLDER = '先让孩子自己读一读，<br>再点「显示拼音」对答案 ↓';
 
   function backToChar(){
     strokeMode = false; writer = null;
+    quizMode = false; quizWriter = null; quizState = null;
     $('#writerBox').innerHTML = '';
     $('#writerBox').classList.add('hidden');
     $('#charEl').classList.remove('hidden');
     $('#writerTools').classList.add('hidden');
     $('#strokeBtn').textContent = '✍️ 笔顺动画';
+    $('#quizBtn').textContent = '✍️ 笔顺闯关';
   }
   function hidePinyin(){
     shown = false;
@@ -1800,6 +1811,8 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
   }
   function showStroke(){
     if(!current){ toast('先抽一个汉字'); return; }
+    if(quizMode){ quizMode = false; quizWriter = null; quizState = null;
+      $('#quizBtn').textContent = '✍️ 笔顺闯关'; $('#writerBox').innerHTML = ''; }
     if(strokeMode){ replayStroke(); return; }
     strokeMode = true;
     $('#charEl').classList.add('hidden');
@@ -1813,6 +1826,99 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     if(!writer){ buildWriter(); return; }
     $('#strokeInfo').textContent = '「' + current + '」正在重播…';
     playWriter(current, strokeCache[current]);
+  }
+
+  /* ---------- 笔顺闯关：跟写 → 默写 ---------- */
+  function strokeStat(ch){
+    var e = entryOf(ch);
+    return (e && e.stroke) ? e.stroke : { ok:0, hint:0, mastered:false, lastAt:'' };
+  }
+  function startStrokeQuiz(){
+    if(!current){ toast('先抽一个汉字'); return; }
+    var ch = current, st = strokeStat(ch);
+    var okCount = Number(st.ok) || 0;
+    var outline = !st.mastered && okCount < 3;   /* 跟写满 3 次全对后自动进入默写 */
+    quizMode = true; strokeMode = false; writer = null; quizWriter = null;
+    quizState = { mistakes:0 };
+    $('#charEl').classList.add('hidden');
+    var box = $('#writerBox');
+    box.innerHTML = '';
+    box.classList.remove('hidden');
+    $('#writerTools').classList.remove('hidden');
+    $('#strokeBtn').textContent = '✍️ 笔顺动画';
+    $('#quizBtn').textContent = '🔁 重新闯关';
+    $('#strokeInfo').textContent = '正在加载「' + ch + '」的笔顺数据…';
+
+    loadStrokeData(ch).then(function(d){
+      if(!quizMode || current !== ch) return;
+      var total = d.strokes.length;
+      var size = box.clientWidth || 200;
+      quizWriter = window.HanziWriter.create(box, ch, {
+        width:size, height:size, padding:6,
+        showOutline:outline, showCharacter:false,
+        strokeColor:'#d9603f', outlineColor:'#e3d5c5',
+        drawingColor:'#c4553a', drawingWidth:6,
+        leniency:QUIZ_LENIENCY, showHintAfterMisses:QUIZ_HINT_AFTER,
+        hintColor:'#e8b39a',
+        charDataLoader:function(c, done){ done(d); },
+        onLoadCharDataError:function(){ $('#strokeInfo').textContent = '「' + ch + '」暂无笔顺数据'; }
+      });
+      quizWriter.quiz({
+        leniency:QUIZ_LENIENCY,
+        showHintAfterMisses:QUIZ_HINT_AFTER,
+        onCorrect:function(n){
+          $('#strokeInfo').textContent = (outline ? '跟写' : '默写') + ' · 第 ' + (n + 1) + ' / ' + total + ' 笔写对了';
+        },
+        onMistake:function(){
+          quizState.mistakes++;
+          $('#strokeInfo').textContent = (outline ? '跟写' : '默写') + ' · 没关系，再试一次（已提示 ' + quizState.mistakes + ' 次）';
+        },
+        onComplete:function(sum){
+          var mistakes = (sum && typeof sum.totalMistakes === 'number')
+            ? sum.totalMistakes : quizState.mistakes;
+          finishStrokeQuiz(ch, outline, mistakes, total);
+        }
+      });
+      $('#strokeInfo').textContent = outline
+        ? '跟写 · 「' + ch + '」共 ' + total + ' 笔，照着浅色轮廓一笔一笔写'
+        : '默写 · 「' + ch + '」共 ' + total + ' 笔，不看轮廓按笔顺写';
+    }).catch(function(){
+      quizMode = false;
+      backToChar();
+      toast('「' + ch + '」暂无笔顺数据，暂时不能闯关');
+    });
+  }
+  function finishStrokeQuiz(ch, outline, mistakes, total){
+    var e = entryOf(ch); if(!e) return;
+    var st = e.stroke || { ok:0, hint:0, mastered:false, lastAt:'' };
+    st.lastAt = new Date().toISOString();
+    if(mistakes === 0){
+      st.ok = (Number(st.ok) || 0) + 1;
+      if(!outline) st.mastered = true;
+    }else{
+      st.hint = (Number(st.hint) || 0) + mistakes;
+    }
+    e.stroke = st;
+
+    if(mistakes > 0){
+      if(!DB.mistakes[ch]){ addMistake(ch); DB.mistakes[ch].onlyStroke = true; }
+      DB.mistakes[ch].stroke = true;
+    }else if(!outline && DB.mistakes[ch] && DB.mistakes[ch].onlyStroke){
+      DB.mistakes[ch].mastered = true; DB.mistakes[ch].due = '';
+    }
+    saveDB(); renderAll();
+
+    if(mistakes === 0){
+      if(outline){
+        var left = Math.max(0, 3 - (Number(st.ok) || 0));
+        $('#strokeInfo').textContent = '🎉 ' + total + ' 笔全对！' +
+          (left > 0 ? '再连对 ' + left + ' 次，就可以挑战不看轮廓的默写' : '下次会自动进入默写');
+      }else{
+        $('#strokeInfo').textContent = '🎉 默写全对，这个字的笔顺已经掌握';
+      }
+    }else{
+      $('#strokeInfo').textContent = '写完了，有 ' + mistakes + ' 处提示。已记入错题本，下次再练一次';
+    }
   }
 
   /* ---------- 本地 JSON ---------- */
@@ -1949,14 +2055,21 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
         var lessonData = {};
         try { if(lessonResp.ok) lessonData = await lessonResp.json(); } catch(e) {}
 
-        // 构建课文索引
-        var lessonMap = {};
+        // 构建课文索引（字 → 所属课文）与课本词语索引（字 → 教材词语）
+        var lessonMap = {}, wordMap = {};
         selected.forEach(function(g){
           (lessonData[g] || []).forEach(function(l){
             (l.chars || []).forEach(function(ch){
               if(!lessonMap[ch]) lessonMap[ch] = [];
               var lessonFull = g + ' ' + l.lesson;
               if(lessonMap[ch].indexOf(lessonFull) < 0) lessonMap[ch].push(lessonFull);
+            });
+            var lw = l.words || {};
+            Object.keys(lw).forEach(function(ch){
+              var arr = wordMap[ch] || (wordMap[ch] = []);
+              (lw[ch] || []).forEach(function(w){
+                if(typeof w === 'string' && w.indexOf(ch) >= 0 && arr.indexOf(w) < 0) arr.push(w);
+              });
             });
           });
         });
@@ -1969,6 +2082,13 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
           });
         });
         var fresh = 0, graded = 0, lessoned = 0;
+        /* 教材改版后课名可能变化：先清掉本次导入册次的旧课文标签，再按新数据挂载 */
+        DB.entries.forEach(function(e){
+          if(!e.lessons || !e.lessons.length) return;
+          e.lessons = e.lessons.filter(function(l){
+            return selected.every(function(g){ return l.indexOf(g + ' ') !== 0; });
+          });
+        });
         Object.keys(charMap).forEach(function(ch){
           var gradesArr = charMap[ch];
           var lessonsArr = lessonMap[ch] || [];
@@ -1983,21 +2103,30 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
             var mergedG = (e.grades || []).slice();
             gradesArr.forEach(function(g){ if(mergedG.indexOf(g) < 0) mergedG.push(g); });
             if(mergedG.length !== (e.grades || []).length){ e.grades = mergedG; graded++; }
-            /* 课文标签按册次替换，避免教材改版后旧课名残留 */
+            /* 课文标签已在上面按册次清理，这里只补挂新的 */
             var before = (e.lessons || []).join('|');
-            var base = (e.lessons || []).filter(function(l){
-              return selected.every(function(g){ return l.indexOf(g + ' ') !== 0; });
-            });
+            var base = e.lessons || [];
             lessonsArr.forEach(function(l){ if(base.indexOf(l) < 0) base.push(l); });
             e.lessons = base;
             if(base.join('|') !== before) lessoned++;
           }
         });
+        /* 课本词语：只补到字库里已有的字上，不覆盖家长自己录的词 */
+        var wordCount = 0;
+        Object.keys(wordMap).forEach(function(ch){
+          if(!entryOf(ch)) return;
+          var arr = DB.words[ch] || (DB.words[ch] = []);
+          wordMap[ch].forEach(function(w){
+            if(arr.indexOf(w) < 0 && arr.length < 8){ arr.push(w); wordCount++; }
+          });
+          if(!arr.length) delete DB.words[ch];
+        });
         /* 默认展开第一个导入的册次，省得用户自己找 */
         activeGrade = selected[0];
         saveDB(); rebuildRound(true); saveRound();
         renderAll();
-        toast('✅ 导入完成：新增 ' + fresh + ' 字，' + graded + ' 补充年级，' + lessoned + ' 补充课文', 3000);
+        toast('✅ 导入完成：新增 ' + fresh + ' 字，' + graded + ' 补充年级，' +
+          lessoned + ' 补充课文，' + wordCount + ' 条课本词语', 3000);
       } catch(err){
         toast('导入失败：' + err.message);
       }
@@ -2039,7 +2168,10 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
   $('#pinyinBtn').addEventListener('click', togglePinyin);
   $('#speakBtn').addEventListener('click', speak);
   $('#strokeBtn').addEventListener('click', showStroke);
-  $('#replayBtn').addEventListener('click', replayStroke);
+  $('#quizBtn').addEventListener('click', startStrokeQuiz);
+  $('#replayBtn').addEventListener('click', function(){
+    if(quizMode) startStrokeQuiz(); else replayStroke();
+  });
   $('#backCharBtn').addEventListener('click', backToChar);
   $('#rightBtn').addEventListener('click', function(){ judge(true, false); });
   $('#wrongBtn').addEventListener('click', function(){ judge(false, false); });
@@ -2055,6 +2187,32 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
       if(!confirm('把「' + ch + '」从错题本移除？')) return;
       delete DB.mistakes[ch]; saveDB(); renderAll(); toast('已移除「' + ch + '」');
     }
+  });
+
+  /* 清空错题本：连续点 5 次才生效，中途停下自动复位 */
+  var clearWrongArmed = 0, clearWrongTimer = null;
+  function resetClearWrong(){
+    clearWrongArmed = 0;
+    clearTimeout(clearWrongTimer);
+    var b = $('#clearWrongBtn');
+    if(!b) return;
+    b.textContent = '清空错题本';
+    b.classList.remove('armed');
+  }
+  $('#clearWrongBtn').addEventListener('click', function(){
+    if(!Object.keys(DB.mistakes).length){ toast('错题本已经是空的'); resetClearWrong(); return; }
+    clearWrongArmed++;
+    clearTimeout(clearWrongTimer);
+    if(clearWrongArmed >= 5){
+      DB.mistakes = {};
+      saveDB(); renderAll();
+      resetClearWrong();
+      toast('错题本已清空');
+      return;
+    }
+    this.classList.add('armed');
+    this.textContent = '再点 ' + (5 - clearWrongArmed) + ' 次确认清空';
+    clearWrongTimer = setTimeout(resetClearWrong, 4000);
   });
 
   $('#exportBtn').addEventListener('click', exportJSON);

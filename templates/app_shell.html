@@ -17,19 +17,20 @@
         overflow: hidden;
         margin: 0;
     }
-    .top-bar { flex: none; }
+    .top-bar { flex: none; position: static; }
     .app-frame {
         flex: 1 1 auto;
         min-height: 0;
         width: 100%;
         border: 0;
-        background: #f8f6f1;
+        background: #f6f2e9;
         margin-bottom: calc(58px + env(safe-area-inset-bottom));
     }
     body.dark-mode .app-frame { background: #1a1d22; }
     .sync-tip {
         position: fixed;
-        top: 64px;
+        top: auto;
+        bottom: calc(70px + env(safe-area-inset-bottom));
         left: 50%;
         transform: translateX(-50%);
         background: rgba(40, 40, 40, .9);
@@ -51,7 +52,7 @@
 <div class="top-bar">
     <div>
         <h1><a href="/apps" style="color:white;text-decoration:none;opacity:.85;">‹</a> {{ app.icon }} {{ app.name }}</h1>
-        <div class="date-display" style="font-size:12px;opacity:0.8;">{{ app.desc }}</div>
+        <div class="date-display" style="font-size:13px;opacity:0.8;">{{ app.desc }}</div>
     </div>
     <div id="topBarActions" style="display:flex;gap:8px;align-items:center;"></div>
 </div>
