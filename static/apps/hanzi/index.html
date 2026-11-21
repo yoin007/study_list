@@ -943,19 +943,40 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
       return e.dates.some(function(d){ return set[d]; });
     });
   }
+  /* 课文在教材中的先后顺序（来自 pep_lessons.json），用于页面按课本顺序排列 */
+  var LESSON_ORDER = {};
+  function loadLessonOrder(){
+    fetch('/static/apps/hanzi/data/pep_lessons.json').then(function(r){
+      return r.ok ? r.json() : null;
+    }).then(function(d){
+      if(!d) return;
+      var seq = 0;
+      Object.keys(d).forEach(function(g){
+        (d[g] || []).forEach(function(l){ LESSON_ORDER[g + ' ' + l.lesson] = seq++; });
+      });
+      if(Object.keys(LESSON_ORDER).length) renderFilters();
+    }).catch(function(){});
+  }
+  function lessonCmp(a, b){
+    var ia = LESSON_ORDER[a], ib = LESSON_ORDER[b];
+    if(ia === undefined && ib === undefined) return a < b ? -1 : (a > b ? 1 : 0);
+    if(ia === undefined) return 1;
+    if(ib === undefined) return -1;
+    return ia - ib;
+  }
   function allLessons(){
-    // 按册次分组返回，用于前端树状展示
+    // 按册次分组返回，册次和课文都按课本先后顺序
     var byGrade = {};
     DB.entries.forEach(function(e){
       (e.lessons || []).forEach(function(l){
-        var grade = l.split(' ')[0]; // '1上·识字1' -> '1上'
+        var grade = l.split(' ')[0];
         if(!byGrade[grade]) byGrade[grade] = {};
         byGrade[grade][l] = 1;
       });
     });
     var ORDER = ['1上','1下','2上','2下','3上','3下','4上','4下','5上','5下','6上','6下'];
     var result = {};
-    ORDER.forEach(function(g){ if(byGrade[g]) result[g] = Object.keys(byGrade[g]).sort(); });
+    ORDER.forEach(function(g){ if(byGrade[g]) result[g] = Object.keys(byGrade[g]).sort(lessonCmp); });
     return result;
   }
   function entriesForLessons(lessons){
@@ -1962,9 +1983,14 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
             var mergedG = (e.grades || []).slice();
             gradesArr.forEach(function(g){ if(mergedG.indexOf(g) < 0) mergedG.push(g); });
             if(mergedG.length !== (e.grades || []).length){ e.grades = mergedG; graded++; }
-            var mergedL = (e.lessons || []).slice();
-            lessonsArr.forEach(function(l){ if(mergedL.indexOf(l) < 0) mergedL.push(l); });
-            if(mergedL.length !== (e.lessons || []).length){ e.lessons = mergedL; lessoned++; }
+            /* 课文标签按册次替换，避免教材改版后旧课名残留 */
+            var before = (e.lessons || []).join('|');
+            var base = (e.lessons || []).filter(function(l){
+              return selected.every(function(g){ return l.indexOf(g + ' ') !== 0; });
+            });
+            lessonsArr.forEach(function(l){ if(base.indexOf(l) < 0) base.push(l); });
+            e.lessons = base;
+            if(base.join('|') !== before) lessoned++;
           }
         });
         /* 默认展开第一个导入的册次，省得用户自己找 */
@@ -2075,6 +2101,7 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     boot();
   }
   boot();
+  loadLessonOrder();                        /* 取课本目录顺序，取到后自动重排课文列表 */
   tryRestoreHandle();                       /* 自动接回同目录 JSON 数据文件 */
   // 暴露给外壳 app_shell：patch localStorage 后重新加载数据
   try { window.hanziReinit = reinit; } catch(e){}
