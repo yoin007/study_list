@@ -21,7 +21,6 @@ from flask import Flask, render_template, request, jsonify, send_from_directory,
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 上传限制50MB
-app.secret_key = 'CHANGE_ME'  # session加密
 
 # ============ 路径配置 ============
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +31,32 @@ DB_PATH = os.path.join(DATA_DIR, 'app.db')
 
 for d in [DATA_DIR, ATTACH_DIR, BACKUP_DIR]:
     os.makedirs(d, exist_ok=True)
+
+
+def load_secret_key():
+    """session 密钥：优先环境变量，其次本地随机生成后落盘（不进 git）"""
+    env_key = os.environ.get('SECRET_KEY')
+    if env_key:
+        return env_key
+    key_file = os.path.join(DATA_DIR, '.secret_key')
+    try:
+        with open(key_file, 'r', encoding='utf-8') as f:
+            saved = f.read().strip()
+        if saved:
+            return saved
+    except OSError:
+        pass
+    new_key = uuid.uuid4().hex + uuid.uuid4().hex
+    try:
+        with open(key_file, 'w', encoding='utf-8') as f:
+            f.write(new_key)
+        os.chmod(key_file, 0o600)
+    except OSError:
+        pass
+    return new_key
+
+
+app.secret_key = load_secret_key()  # session加密
 
 
 # ============ 数据库初始化 ============
