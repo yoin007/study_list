@@ -148,16 +148,18 @@
     }
 
     // —— 劫持 iframe 的 localStorage：应用写"hanziReaderDB.v2" → 实际写"<NS>hanziReaderDB.v2" ——
+    // 关键：用顶层 window.localStorage 作为底层存储。同源 iframe 的 localStorage 与顶层隔离，
+    // 只有 window.parent.localStorage 才能读写同一份数据。
     function patchIframeStorage() {
         try {
             var w = frame.contentWindow;
             if (!w || !w.localStorage) return;
             var store = w.localStorage;
-            var origGetItem  = store.getItem.bind(store);
-            var origSetItem  = store.setItem.bind(store);
-            var origRemoveItem = store.removeItem.bind(store);
-            var origKey      = store.key.bind(store);
-            var origClear    = store.clear.bind(store);
+            var topLS = window.top.localStorage;
+            var origGetItem  = topLS.getItem.bind(topLS);
+            var origSetItem  = topLS.setItem.bind(topLS);
+            var origRemoveItem = topLS.removeItem.bind(topLS);
+            var origKey      = topLS.key.bind(topLS);
 
             store.getItem = function (k) {
                 return origGetItem(NS + k);
@@ -181,17 +183,7 @@
                 }
                 return null;
             };
-            try {
-                Object.defineProperty(store, 'length', {
-                    get: function () {
-                        var n = 0;
-                        for (var j = 0; j < origKey.length; j++) {
-                            if (origKey(j) && origKey(j).indexOf(NS) === 0) n++;
-                        }
-                        return n;
-                    }
-                });
-            } catch (e) {}
+            store.length = 0;  // 占位，实际 length 不被覆盖（defineProperty 抛 TypeError 无意义）
             store.clear = function () {
                 var toDel = [];
                 for (var j = 0; j < origKey.length; j++) {
@@ -278,16 +270,16 @@
     }
 
     function loadFrame() {
-        patchIframeStorage();   // 先劫持 iframe（挂钩写穿推送）再给 src
-        frame.src = APP.url + '?v=20261113b';
-        // iframe 加载完后覆盖"本地数据"UI：hanzi 的 updateFileUI 在 IIFE 里，劫持不到
-        // 所以直接 DOM 覆盖 + MutationObserver 防止被 hanzi 改回去
+        frame.src = APP.url + '?v=20261113c';
+        // iframe 加载完后再 patch（否则 reload 会替换 localStorage 对象，patch 丢失）
+        // 然后让 hanzi 重新从已 patch 的 localStorage 读数据
         frame.onload = function () {
+            patchIframeStorage();
             waitHanziDomReady(function () {
-                var idoc = frame.contentDocument;
-                overrideLocalDataUIDom(idoc);
-                // 监听 hanzi 是否把我们覆盖的元素又改回旧文案（updateFileUI 在 IIFE 内部调用）
-                watchHanziLocalDataUI(idoc);
+                // hanzi 应用已经暴露了 window.hanziReinit，调用它让 DB 重新从 localStorage 加载
+                try { frame.contentWindow.hanziReinit && frame.contentWindow.hanziReinit(); } catch (e) {}
+                overrideLocalDataUIDom(frame.contentDocument);
+                watchHanziLocalDataUI(frame.contentDocument);
             });
         };
     }

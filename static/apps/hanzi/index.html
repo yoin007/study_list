@@ -84,16 +84,98 @@
   .chip.more{background:none;color:var(--ink-soft);font-size:12px;font-family:inherit}
 
   .filters{display:flex;flex-wrap:wrap;gap:8px}
-  .date-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1.5px solid var(--line);
-    border-radius:11px;font-size:13px;cursor:pointer;background:#fdfcf9;transition:.16s;user-select:none}
-  .date-chip input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
-  .date-chip b{font-weight:600;opacity:.6;font-size:12px}
-  .date-chip.on{border-color:var(--red);background:var(--red-soft);color:var(--red)}
   .quickbar{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
   .quick{background:none;border:0;color:var(--green);font:inherit;font-size:12.5px;
     cursor:pointer;padding:8px 0;min-height:38px}
   .quick:hover{text-decoration:underline}
   .pool-info{margin-left:auto;font-size:12.5px;color:var(--ink-soft)}
+
+  /* ---------- 练习范围：两个来源分区 ---------- */
+  .src-block{border:1.5px solid var(--line);border-radius:16px;padding:14px 15px 12px;margin-top:12px}
+  .src-block.tone-date{background:linear-gradient(180deg,#fffaf6,#fdfcf9 62%);border-color:#f2ded3}
+  .src-block.tone-book{background:linear-gradient(180deg,#f6fbf9,#fdfcf9 62%);border-color:#d8eae2}
+  .src-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .src-tag{width:21px;height:21px;flex:none;border-radius:7px;display:grid;place-items:center;
+    font-size:11px;font-weight:700;font-family:inherit}
+  .tone-date .src-tag{background:#f7e1d8;color:var(--red)}
+  .tone-book .src-tag{background:#dcefe7;color:var(--green)}
+  .src-title{font-size:14px;font-weight:600;margin:0}
+  .src-badge{margin-left:auto;font-size:11.5px;color:var(--ink-soft);background:#fff;border:1px solid var(--line);
+    border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .src-badge.hot{color:#fff;background:var(--red);border-color:var(--red)}
+  .tone-book .src-badge.hot{background:var(--green);border-color:var(--green)}
+  .src-note{font-size:12px;color:var(--ink-soft);line-height:1.65;margin:0 0 8px}
+  .src-actions{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:10px;
+    padding-top:9px;border-top:1px dashed var(--line)}
+  .src-actions .quick{color:var(--ink-soft);font-size:12px}
+  .src-actions .quick.strong{color:var(--green)}
+
+  /* 按钮式选择片：不依赖隐藏 input，点击即有明确反馈 */
+  .pick{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1.5px solid var(--line);
+    border-radius:11px;font:inherit;font-size:13px;background:#fff;color:var(--ink);cursor:pointer;
+    transition:.15s;text-align:left;line-height:1.35}
+  .pick:hover{border-color:#ded3c6}
+  .pick .tick{width:15px;height:15px;flex:none;border-radius:5px;border:1.5px solid #d2c8ba;
+    display:grid;place-items:center;font-size:10px;line-height:1;color:#fff;transition:.15s}
+  .pick em{font-style:normal;font-size:11px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .pick.on{border-color:var(--red);background:var(--red-soft);color:var(--red);font-weight:600}
+  .pick.on .tick{background:var(--red);border-color:var(--red)}
+  .pick.on .tick::after{content:"✓"}
+  .pick.on em{color:#c0705a}
+  .tone-book .pick.on{border-color:var(--green);background:#eaf6f1;color:#2c6b58}
+  .tone-book .pick.on .tick{background:var(--green);border-color:var(--green)}
+  .tone-book .pick.on em{color:#4a8b78}
+
+  .grade-tabs{display:flex;gap:6px;overflow-x:auto;padding:0 0 4px;margin-bottom:9px}
+  .grade-tabs::-webkit-scrollbar{display:none}
+  .grade-tab{flex:none;display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:10px;
+    border:1.5px solid var(--line);background:#fff;font:inherit;font-size:12.5px;font-weight:600;
+    color:var(--ink-soft);cursor:pointer;transition:.15s}
+  .grade-tab:hover{border-color:#cfe0d8;color:var(--green)}
+  .grade-tab.active{background:var(--green);border-color:var(--green);color:#fff}
+  .grade-tab .gdot{font-size:10px;padding:0 5px;border-radius:8px;background:rgba(0,0,0,.08)}
+  .grade-tab.active .gdot{background:rgba(255,255,255,.28)}
+  .lesson-grid{display:flex;flex-wrap:wrap;gap:6px;max-height:228px;overflow:auto;padding:2px 2px 4px}
+  .lesson-grid .pick{font-size:12px;padding:6px 9px;border-radius:9px}
+  .lesson-grid .pick .tick{width:13px;height:13px;border-radius:4px}
+
+  .scope-summary{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:14px;
+    padding:11px 14px;border-radius:13px;background:#fbf7f1;border:1px dashed #e6d9c8;
+    font-size:12.5px;color:var(--ink-soft);line-height:1.6}
+  .scope-summary b{color:var(--red);font-size:16px;font-variant-numeric:tabular-nums}
+  .scope-summary .sep{opacity:.45}
+
+  /* ---------- 导入教材字库弹窗 ---------- */
+  .imp-mask{position:fixed;inset:0;background:rgba(47,52,55,.42);z-index:9999;display:flex;
+    align-items:center;justify-content:center;padding:18px;animation:impFade .16s ease}
+  .imp-box{background:#fff;border-radius:20px;width:100%;max-width:420px;max-height:86vh;
+    display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(60,45,30,.26);
+    animation:impPop .22s cubic-bezier(.2,.9,.3,1.1)}
+  .imp-head{padding:20px 22px 0}
+  .imp-head h3{margin:0 0 6px;font-size:17px}
+  .imp-head p{margin:0;font-size:12.5px;color:var(--ink-soft);line-height:1.65}
+  .imp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px 22px;overflow:auto}
+  .imp-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:11px 6px;
+    border-radius:12px;border:1.5px solid var(--line);background:#fdfcf9;font:inherit;
+    cursor:pointer;transition:.15s;color:var(--ink)}
+  .imp-item:hover{border-color:#dccfc0;background:#fff}
+  .imp-item b{font-size:14.5px;font-weight:600}
+  .imp-item span{font-size:11px;color:var(--ink-soft)}
+  .imp-item.on{border-color:var(--red);background:var(--red-soft);color:var(--red)}
+  .imp-item.on span{color:#c0705a}
+  .imp-foot{display:flex;align-items:center;gap:12px;padding:0 22px 20px;flex-wrap:wrap}
+  .imp-link{background:none;border:0;font:inherit;font-size:12.5px;color:var(--green);
+    cursor:pointer;padding:6px 0;min-height:32px}
+  .imp-link:hover{text-decoration:underline}
+  .imp-count{margin-left:auto;font-size:12.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .imp-btn{font:inherit;font-size:14px;font-weight:600;padding:10px 16px;border-radius:11px;
+    cursor:pointer;border:1.5px solid transparent;transition:.15s}
+  .imp-btn.primary{background:var(--red);color:#fff;box-shadow:0 5px 14px rgba(217,96,63,.22)}
+  .imp-btn.primary:disabled{background:#e7cfc6;box-shadow:none;cursor:not-allowed}
+  .imp-btn.ghost{background:#fff;border-color:var(--line);color:var(--ink-soft)}
+  @keyframes impFade{from{opacity:0}to{opacity:1}}
+  @keyframes impPop{from{opacity:0;transform:translateY(12px) scale(.97)}
+    to{opacity:1;transform:none}}
 
   .date-list{margin-top:6px}
   .date-line{display:flex;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line);align-items:flex-start}
@@ -278,7 +360,15 @@
     .date-line .d{width:auto;flex:none;white-space:nowrap}
     .date-line .cs{width:100%}
     .date-input{font-size:16px;min-height:44px;padding:9px 12px}
-    .date-chip{min-height:42px;padding:9px 12px}
+    .pick{min-height:42px;padding:9px 11px;font-size:13px}
+    .lesson-grid .pick{min-height:38px}
+    .grade-tab{min-height:38px}
+    .src-block{padding:12px 12px 10px}
+    .src-actions{gap:10px;justify-content:space-between}
+    .lesson-grid{max-height:none}
+    .imp-grid{grid-template-columns:repeat(3,1fr);padding:14px 16px}
+    .imp-foot{padding:0 16px 16px;gap:10px}
+    .imp-head{padding:18px 16px 0}
     .mini{min-height:40px;padding:9px 11px;font-size:12px}
     .quick{min-height:40px;padding:9px 4px}
     .link{min-height:38px;padding:8px 4px}
@@ -315,7 +405,8 @@
     .tab{font-size:11.5px;padding:9px 2px}
     .tab .num{padding:1px 3px;font-size:9.5px;margin-left:1px}
     .judge{font-size:12px}
-    .date-chip{padding:9px 9px;font-size:12px}
+    .pick{padding:9px 9px;font-size:12px}
+    .grade-tab{padding:6px 10px;font-size:12px}
   }
 </style>
 </head>
@@ -349,6 +440,7 @@
           <button class="btn primary small" id="addBtn" type="button">＋ 加入字库</button>
           <button class="link" id="clearInputBtn" type="button">清空输入</button>
         </div>
+        <button class="btn secondary small" id="importTextbookBtn" type="button" style="width:100%;margin-top:4px">📚 一键导入教材字库（人教版 2484 字）</button>
         <div class="chips" id="addPreview"></div>
         <details class="word-edit" id="wordEdit" open>
           <summary>课本词语／短句（选填，推荐）</summary>
@@ -393,11 +485,42 @@
       <div class="card">
         <div class="head"><span class="step">1</span><h2>选择练习范围</h2>
           <span class="count" id="poolInfo">—</span></div>
-        <p class="sub">默认只抽今天添加的字；可多选日期，把前几天学的字一起加入练习。</p>
-        <div class="filters" id="dateFilters"></div>
+        <p class="sub">下面两个来源可以单独用，也可以一起用——选中的字会合并成这一轮的练习范围。</p>
+
+        <!-- 来源一：按日期添加 -->
+        <div class="src-block tone-date">
+          <div class="src-head">
+            <span class="src-tag">日</span>
+            <h3 class="src-title">按日期添加的字</h3>
+            <span class="src-badge" id="dateBadge">未选</span>
+          </div>
+          <div class="filters" id="dateFilters"></div>
+          <div class="src-actions">
+            <button class="quick strong" id="quickToday" type="button">仅今天</button>
+            <button class="quick" id="quickAll" type="button">全选所有日期</button>
+            <button class="quick" id="clearDates" type="button">清空</button>
+          </div>
+        </div>
+
+        <!-- 来源二：课本生字 -->
+        <div class="src-block tone-book">
+          <div class="src-head">
+            <span class="src-tag">课</span>
+            <h3 class="src-title">课本生字（人教版）</h3>
+            <span class="src-badge" id="bookBadge">未选</span>
+          </div>
+          <p class="src-note" id="bookNote"></p>
+          <div class="grade-tabs" id="gradeTabs"></div>
+          <div class="lesson-grid" id="lessonFilters"></div>
+          <div class="src-actions" id="bookActions">
+            <button class="quick strong" id="quickLessonAll" type="button">全选本册</button>
+            <button class="quick" id="clearLessons" type="button">清空课本选择</button>
+          </div>
+        </div>
+
+        <div class="scope-summary" id="scopeSummary"></div>
+
         <div class="quickbar">
-          <button class="quick" id="quickToday" type="button">仅今天</button>
-          <button class="quick" id="quickAll" type="button">全选所有日期</button>
           <button class="quick" id="restartRoundBtn" type="button">🔀 重新洗牌本轮</button>
         </div>
       </div>
@@ -574,12 +697,12 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
   var fileHandle = null, needsRebind = false, writeWarned = false;
   var FILE_TYPES = [{ description:'JSON 数据文件', accept:{ 'application/json':['.json'] } }];
   function blankDB(){
-    return { version:2, updatedAt:'', entries:[], mistakes:{}, words:{},
-             settings:{ selectedDates:[], lastTab:'pick' } };
+    return { version:4, updatedAt:'', entries:[], mistakes:{}, words:{},
+             settings:{ selectedDates:[], selectedGrades:[], selectedLessons:[], lastTab:'pick' } };
   }
   function parseDB(d){
     if(!d || !Array.isArray(d.entries)) return null;
-    return { version:2, updatedAt:d.updatedAt || '', entries:d.entries,
+    return { version:4, updatedAt:d.updatedAt || '', entries:d.entries,
              mistakes:d.mistakes || {}, words:d.words || {}, settings:d.settings || {} };
   }
   function loadDB(){
@@ -587,6 +710,8 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
       var d = parseDB(JSON.parse(localStorage.getItem(KEY) || 'null'));
       if(!d) return blankDB();
       if(!Array.isArray(d.settings.selectedDates)) d.settings.selectedDates = [];
+      if(!Array.isArray(d.settings.selectedGrades)) d.settings.selectedGrades = [];
+      if(!Array.isArray(d.settings.selectedLessons)) d.settings.selectedLessons = [];
       return d;
     }catch(e){ return blankDB(); }
   }
@@ -598,6 +723,13 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
       if(!Array.isArray(e.dates)) e.dates = [];
       e.dates = Array.from(new Set(e.dates.filter(function(d){ return /^\d{4}-\d{2}-\d{2}$/.test(d); }))).sort();
       e.right = Number(e.right) || 0; e.wrong = Number(e.wrong) || 0;
+      if(!Array.isArray(e.grades)) e.grades = [];
+      if(!Array.isArray(e.lessons)) e.lessons = [];
+      /* src：manual=按日期手动添加，book=教材字库导入。
+         旧数据没有 src，按是否带课文信息判断，避免教材导入的字混进「按日期」列表 */
+      if(e.src !== 'book' && e.src !== 'manual'){
+        e.src = (e.lessons && e.lessons.length) ? 'book' : 'manual';
+      }
     });
     Object.keys(DB.mistakes).forEach(function(ch){
       var m = DB.mistakes[ch];
@@ -797,20 +929,52 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     $('#fileBannerText').innerHTML = tip;
   }
   function entryOf(ch){ return DB.entries.find(function(e){ return e.char === ch; }); }
+  /* 「按日期添加」只看手动录入的字，教材导入的字归到课本那一部分 */
+  function manualEntries(){ return DB.entries.filter(function(e){ return e.src !== 'book'; }); }
   function allDates(){
     var set = {};
-    DB.entries.forEach(function(e){ e.dates.forEach(function(d){ set[d] = 1; }); });
+    manualEntries().forEach(function(e){ e.dates.forEach(function(d){ set[d] = 1; }); });
     return Object.keys(set).sort().reverse();
   }
   function entriesForDates(dates){
     var set = {}; dates.forEach(function(d){ set[d] = 1; });
-    return DB.entries.filter(function(e){ return e.dates.some(function(d){ return set[d]; }); });
+    return DB.entries.filter(function(e){
+      if(e.src === 'book') return false;
+      return e.dates.some(function(d){ return set[d]; });
+    });
+  }
+  function allLessons(){
+    // 按册次分组返回，用于前端树状展示
+    var byGrade = {};
+    DB.entries.forEach(function(e){
+      (e.lessons || []).forEach(function(l){
+        var grade = l.split(' ')[0]; // '1上·识字1' -> '1上'
+        if(!byGrade[grade]) byGrade[grade] = {};
+        byGrade[grade][l] = 1;
+      });
+    });
+    var ORDER = ['1上','1下','2上','2下','3上','3下','4上','4下','5上','5下','6上','6下'];
+    var result = {};
+    ORDER.forEach(function(g){ if(byGrade[g]) result[g] = Object.keys(byGrade[g]).sort(); });
+    return result;
+  }
+  function entriesForLessons(lessons){
+    if(!lessons.length) return DB.entries;
+    var set = {}; lessons.forEach(function(l){ set[l] = 1; });
+    return DB.entries.filter(function(e){ return (e.lessons || []).some(function(l){ return set[l]; }); });
   }
   function initSelected(){
     var ds = allDates(), t = today();
     var saved = (DB.settings.selectedDates || []).filter(function(d){ return ds.indexOf(d) >= 0; });
     if(!saved.length) saved = ds.indexOf(t) >= 0 ? [t] : (ds.length ? [ds[0]] : []);
     DB.settings.selectedDates = saved;
+    /* 课本部分改为「按册次→按课文」选择，年级多选不再使用 */
+    DB.settings.selectedGrades = [];
+    var ls = allLessons();
+    DB.settings.selectedLessons = (DB.settings.selectedLessons || []).filter(function(l){
+      var grade = l.split(' ')[0];
+      return ls[grade] && ls[grade].indexOf(l) >= 0;
+    });
   }
 
   /* ---------- 通用 UI ---------- */
@@ -843,7 +1007,9 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     $('#libSummary').textContent = ds.length + ' 天 · ' + DB.entries.length + ' 字';
     var box = $('#dateList'); box.innerHTML = '';
     if(!ds.length){
-      box.innerHTML = '<div class="empty">字库还是空的，先在上面输入今天要学的汉字吧</div>';
+      box.innerHTML = '<div class="empty">' + (DB.entries.length
+        ? '课本生字已导入，可到「② 随机挑选 → 课本生字」按册次和课文练习。这里只列按日期手动添加的字。'
+        : '字库还是空的，先在上面输入今天要学的汉字吧') + '</div>';
       return;
     }
     ds.forEach(function(d){
@@ -963,27 +1129,126 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     }
   }
 
-  /* ---------- 渲染：日期多选 ---------- */
+  /* ---------- 渲染：练习范围（日期 / 课本 两个来源） ---------- */
+  var activeGrade = '';                       /* 课本区当前展开的册次 */
+
+  function toggleIn(arr, v){
+    var i = arr.indexOf(v);
+    if(i >= 0) arr.splice(i, 1); else arr.push(v);
+  }
+  /* 选择片：按钮实现，点击即有勾选反馈，不依赖隐藏 input */
+  function pickEl(opt){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pick' + (opt.on ? ' on' : '');
+    b.setAttribute('aria-pressed', opt.on ? 'true' : 'false');
+    var tk = document.createElement('span'); tk.className = 'tick';
+    var tx = document.createElement('span'); tx.textContent = opt.label;
+    b.appendChild(tk); b.appendChild(tx);
+    if(opt.count){
+      var em = document.createElement('em'); em.textContent = opt.count; b.appendChild(em);
+    }
+    b.addEventListener('click', opt.onClick);
+    return b;
+  }
+
   function renderFilters(){
+    /* ---- 来源一：按日期添加 ---- */
     var ds = allDates(), sel = DB.settings.selectedDates, box = $('#dateFilters');
     box.innerHTML = '';
     if(!ds.length){
-      box.innerHTML = '<div class="empty" style="text-align:left;padding:6px 0">还没有汉字，请先到「添加汉字」录入</div>';
+      var ph = document.createElement('div');
+      ph.className = 'src-note';
+      ph.style.margin = '0';
+      ph.textContent = '还没有按日期添加的字，先到「① 添加汉字」录入。';
+      box.appendChild(ph);
     }
     ds.forEach(function(d){
       var n = entriesForDates([d]).length;
-      var lab = document.createElement('label');
-      lab.className = 'date-chip' + (sel.indexOf(d) >= 0 ? ' on' : '');
-      var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = sel.indexOf(d) >= 0; cb.dataset.date = d;
-      lab.appendChild(cb);
-      lab.appendChild(document.createTextNode(shortDate(d) + ' ' + weekday(d)));
-      var b = document.createElement('b'); b.textContent = n + '字'; lab.appendChild(b);
-      box.appendChild(lab);
+      box.appendChild(pickEl({
+        on: sel.indexOf(d) >= 0,
+        label: shortDate(d) + ' ' + weekday(d),
+        count: n + ' 字',
+        onClick: function(){ toggleIn(DB.settings.selectedDates, d); onScopeChange(); }
+      }));
     });
-    var chars = entriesForDates(sel).map(function(e){ return e.char; });
-    var info = '已选 ' + sel.length + ' 天 · 共 ' + chars.length + ' 个字';
-    if(ds.indexOf(today()) >= 0 && sel.indexOf(today()) < 0) info += '（今天未选）';
-    $('#poolInfo').textContent = info;
+    var dateCount = sel.length ? entriesForDates(sel).length : 0;
+    var dBadge = $('#dateBadge');
+    dBadge.textContent = sel.length ? sel.length + ' 天 · ' + dateCount + ' 字' : '未选';
+    dBadge.classList.toggle('hot', sel.length > 0);
+
+    /* ---- 来源二：课本生字 ---- */
+    var ls = allLessons(), grades = Object.keys(ls);
+    var tabs = $('#gradeTabs'), grid = $('#lessonFilters'), note = $('#bookNote');
+    var keepScroll = grid.scrollTop;          /* 点选课文后保持滚动位置 */
+    tabs.innerHTML = ''; grid.innerHTML = '';
+    if(!grades.length){
+      note.classList.remove('hidden');
+      note.textContent = '还没有课本生字。先到「① 添加汉字」页点「📚 一键导入教材字库」，这里就能按册次和课文挑字。';
+      tabs.classList.add('hidden'); grid.classList.add('hidden');
+      $('#bookActions').classList.add('hidden');
+    }else{
+      note.classList.add('hidden');
+      tabs.classList.remove('hidden'); grid.classList.remove('hidden');
+      $('#bookActions').classList.remove('hidden');
+      if(grades.indexOf(activeGrade) < 0){
+        var firstSel = DB.settings.selectedLessons[0];
+        activeGrade = firstSel ? firstSel.split(' ')[0] : grades[0];
+        if(grades.indexOf(activeGrade) < 0) activeGrade = grades[0];
+      }
+      grades.forEach(function(g){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'grade-tab' + (g === activeGrade ? ' active' : '');
+        b.textContent = g;
+        var picked = DB.settings.selectedLessons.filter(function(l){
+          return l.indexOf(g + ' ') === 0;
+        }).length;
+        if(picked){
+          var dot = document.createElement('span'); dot.className = 'gdot'; dot.textContent = picked;
+          b.appendChild(dot);
+        }
+        b.addEventListener('click', function(){ activeGrade = g; renderFilters(); });
+        tabs.appendChild(b);
+      });
+      ls[activeGrade].forEach(function(l){
+        var n = entriesForLessons([l]).length;
+        grid.appendChild(pickEl({
+          on: DB.settings.selectedLessons.indexOf(l) >= 0,
+          label: l.replace(/^\S+\s/, ''),
+          count: n + ' 字',
+          onClick: function(){ toggleIn(DB.settings.selectedLessons, l); onScopeChange(); }
+        }));
+      });
+      grid.scrollTop = keepScroll;
+    }
+    var lessonChars = DB.settings.selectedLessons.length ? entriesForLessons(DB.settings.selectedLessons).length : 0;
+    var bBadge = $('#bookBadge');
+    bBadge.textContent = DB.settings.selectedLessons.length
+      ? DB.settings.selectedLessons.length + ' 课 · ' + lessonChars + ' 字' : '未选';
+    bBadge.classList.toggle('hot', DB.settings.selectedLessons.length > 0);
+
+    renderScopeSummary();
+  }
+
+  /* 两个来源取并集；都没有选择时用全部字库 */
+  function renderScopeSummary(){
+    var pool = scopeEntries().length;
+    var none = !DB.settings.selectedDates.length && !DB.settings.selectedLessons.length;
+    var dateCount = DB.settings.selectedDates.length ? entriesForDates(DB.settings.selectedDates).length : 0;
+    var bookCount = DB.settings.selectedLessons.length ? entriesForLessons(DB.settings.selectedLessons).length : 0;
+    var el = $('#scopeSummary');
+    if(none){
+      el.innerHTML = '没有筛选条件，本轮用全部字库 <b>' + pool + '</b> 字';
+    }else{
+      var parts = [];
+      if(dateCount) parts.push('日期 ' + dateCount + ' 字');
+      if(bookCount) parts.push('课本 ' + bookCount + ' 字');
+      el.innerHTML = '本轮练习范围 <b>' + pool + '</b> 字' +
+        '<span class="sep">＝</span>' + parts.join(' ＋ ') +
+        (dateCount + bookCount > pool ? '（有重复，已合并去重）' : '');
+    }
+    $('#poolInfo').textContent = '共 ' + pool + ' 字';
   }
 
   /* ---------- 渲染：错题本 ---------- */
@@ -1138,10 +1403,26 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     $('#badgeReview').textContent = pendingChars(false).length;
   }
   /* ---------- 本轮练习：范围内每个字都会被抽到 ---------- */
-  function scopeChars(){
-    return entriesForDates(DB.settings.selectedDates).map(function(e){ return e.char; });
+  /* 两个来源取并集：日期添加的字 ＋ 课本选中的字；都没选时用全部字库 */
+  function scopeEntries(){
+    var dsel = DB.settings.selectedDates, lsel = DB.settings.selectedLessons;
+    if(!dsel.length && !lsel.length) return DB.entries.slice();
+    var out = [], seen = {};
+    function addAll(list){
+      list.forEach(function(e){
+        if(seen[e.char]) return;
+        seen[e.char] = 1; out.push(e);
+      });
+    }
+    if(dsel.length) addAll(entriesForDates(dsel));
+    if(lsel.length) addAll(entriesForLessons(lsel));
+    return out;
   }
-  /* keepProgress=true 时：保留已练过的字、保留仍待抽的字、补入新勾选的字、移除取消的字 */
+  function scopeChars(){
+    return scopeEntries().map(function(e){ return e.char; });
+  }
+  /* keepProgress=true 时：保留已练过的字、保留仍待抽的字、补入新勾选的字、移除取消的字
+     + 权重排序：错题优先 → 近期学的 → 旧字 */
   function rebuildRound(keepProgress){
     var chars = scopeChars(), set = {}, seen = {};
     chars.forEach(function(c){ set[c] = 1; });
@@ -1153,6 +1434,23 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     bag.concat(roundDone).forEach(function(c){ seen[c] = 1; });
     chars.forEach(function(c){ if(!seen[c] && bag.indexOf(c) < 0) bag.push(c); });
     roundChars = chars;
+    // 权重排序：错题优先 → 刚加的日期 → 旧字
+    var entryMap = {}; DB.entries.forEach(function(e){ entryMap[e.char] = e; });
+    bag.sort(function(a, b){
+      var ea = entryMap[a], eb = entryMap[b];
+      if(!ea || !eb) return 0;
+      // 错题优先
+      var aw = ea.wrong || 0, bw = eb.wrong || 0;
+      if(aw > 0 && bw === 0) return -1;
+      if(aw === 0 && bw > 0) return 1;
+      // 错题多的更前
+      if(aw !== bw) return bw - aw;
+      // 加的日期近的更前
+      var ad = (ea.dates && ea.dates.length) ? ea.dates[ea.dates.length - 1] : '';
+      var bd = (eb.dates && eb.dates.length) ? eb.dates[eb.dates.length - 1] : '';
+      if(ad && bd && ad !== bd) return bd < ad ? -1 : 1;
+      return 0;
+    });
     bag = shuffle(Array.from(new Set(bag)));
     roundFinished = roundChars.length > 0 && bag.length === 0;
   }
@@ -1547,7 +1845,7 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     var fresh = 0, more = 0;
     chars.forEach(function(ch){
       var e = entryOf(ch);
-      if(!e){ DB.entries.push({ char:ch, dates:[date], right:0, wrong:0, addedAt:new Date().toISOString() }); fresh++; }
+      if(!e){ DB.entries.push({ char:ch, dates:[date], right:0, wrong:0, src:'manual', addedAt:new Date().toISOString(), grades:[], lessons:[] }); fresh++; }
       else if(e.dates.indexOf(date) < 0){ e.dates.push(date); e.dates.sort(); more++; }
     });
     if(date === today() && DB.settings.selectedDates.indexOf(date) < 0) DB.settings.selectedDates.push(date);
@@ -1556,27 +1854,160 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     $('#addInput').value = ''; renderAddPreview(); renderAll();
     toast('加入 ' + fresh + ' 个新字' + (more ? '，' + more + ' 个字补充了 ' + shortDate(date) : '') + '（' + shortDate(date) + '）');
   });
-  $('#dateFilters').addEventListener('change', function(e){
-    var cb = e.target;
-    if(!cb.dataset || !cb.dataset.date) return;
-    var d = cb.dataset.date, sel = DB.settings.selectedDates, i = sel.indexOf(d);
-    if(cb.checked && i < 0) sel.push(d);
-    if(!cb.checked && i >= 0) sel.splice(i, 1);
-    onScopeChange();
+
+  /* ---------- 导入人教版教材字库 ---------- */
+  $('#importTextbookBtn').addEventListener('click', function(){
+    var grades = ['1上','1下','2上','2下','3上','3下','4上','4下','5上','5下','6上','6下'];
+    var picked = {};
+
+    var mask = document.createElement('div');
+    mask.className = 'imp-mask';
+    mask.innerHTML =
+      '<div class="imp-box" role="dialog" aria-modal="true" aria-label="导入教材字库">' +
+        '<div class="imp-head">' +
+          '<h3>📚 导入教材字库</h3>' +
+          '<p>点击册次即可选中（再点一次取消）。已有的字不会重复添加，只补充年级和课文信息。</p>' +
+        '</div>' +
+        '<div class="imp-grid" id="impGrid"></div>' +
+        '<div class="imp-foot">' +
+          '<button type="button" class="imp-link" id="impAll">全选</button>' +
+          '<button type="button" class="imp-link" id="impNone">清空</button>' +
+          '<span class="imp-count" id="impCount">未选择</span>' +
+          '<button type="button" class="imp-btn ghost" id="impCancel">取消</button>' +
+          '<button type="button" class="imp-btn primary" id="impOk" disabled>开始导入</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(mask);
+
+    var grid = mask.querySelector('#impGrid');
+    var countEl = mask.querySelector('#impCount');
+    var okBtn = mask.querySelector('#impOk');
+
+    function refresh(){
+      var n = Object.keys(picked).length;
+      countEl.textContent = n ? '已选 ' + n + ' 册' : '未选择';
+      okBtn.disabled = n === 0;
+    }
+    grades.forEach(function(g){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'imp-item';
+      b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = '<b>' + g + '</b><span>语文</span>';
+      b.addEventListener('click', function(){
+        if(picked[g]){ delete picked[g]; b.classList.remove('on'); b.setAttribute('aria-pressed','false'); }
+        else { picked[g] = 1; b.classList.add('on'); b.setAttribute('aria-pressed','true'); }
+        refresh();
+      });
+      grid.appendChild(b);
+    });
+    mask.querySelector('#impAll').addEventListener('click', function(){
+      grades.forEach(function(g){ picked[g] = 1; });
+      Array.prototype.forEach.call(grid.children, function(b){ b.classList.add('on'); b.setAttribute('aria-pressed','true'); });
+      refresh();
+    });
+    mask.querySelector('#impNone').addEventListener('click', function(){
+      picked = {};
+      Array.prototype.forEach.call(grid.children, function(b){ b.classList.remove('on'); b.setAttribute('aria-pressed','false'); });
+      refresh();
+    });
+    mask.querySelector('#impCancel').addEventListener('click', function(){ mask.remove(); });
+    mask.addEventListener('click', function(e){ if(e.target === mask) mask.remove(); });
+
+    okBtn.addEventListener('click', async function(){
+      var selected = Object.keys(picked);
+      if(!selected.length) return;
+      mask.remove(); toast('正在加载教材数据...');
+      try {
+        var [xieziResp, lessonResp] = await Promise.all([
+          fetch('/static/apps/hanzi/data/pep_xiezi.json'),
+          fetch('/static/apps/hanzi/data/pep_lessons.json')
+        ]);
+        if(!xieziResp.ok) throw new Error('教材数据文件缺失');
+        var data = await xieziResp.json();
+        var lessonData = {};
+        try { if(lessonResp.ok) lessonData = await lessonResp.json(); } catch(e) {}
+
+        // 构建课文索引
+        var lessonMap = {};
+        selected.forEach(function(g){
+          (lessonData[g] || []).forEach(function(l){
+            (l.chars || []).forEach(function(ch){
+              if(!lessonMap[ch]) lessonMap[ch] = [];
+              var lessonFull = g + ' ' + l.lesson;
+              if(lessonMap[ch].indexOf(lessonFull) < 0) lessonMap[ch].push(lessonFull);
+            });
+          });
+        });
+
+        var charMap = {};
+        selected.forEach(function(g){
+          (data[g] || []).forEach(function(item){
+            if(!charMap[item.char]) charMap[item.char] = [];
+            if(charMap[item.char].indexOf(g) < 0) charMap[item.char].push(g);
+          });
+        });
+        var fresh = 0, graded = 0, lessoned = 0;
+        Object.keys(charMap).forEach(function(ch){
+          var gradesArr = charMap[ch];
+          var lessonsArr = lessonMap[ch] || [];
+          var e = entryOf(ch);
+          if(!e){
+            /* 教材字不写「添加日期」，避免混进「按日期添加」那一栏 */
+            DB.entries.push({ char:ch, dates:[], right:0, wrong:0, src:'book',
+              addedAt:new Date().toISOString(), grades:gradesArr, lessons:lessonsArr });
+            fresh++;
+          } else {
+            e.src = 'book';
+            var mergedG = (e.grades || []).slice();
+            gradesArr.forEach(function(g){ if(mergedG.indexOf(g) < 0) mergedG.push(g); });
+            if(mergedG.length !== (e.grades || []).length){ e.grades = mergedG; graded++; }
+            var mergedL = (e.lessons || []).slice();
+            lessonsArr.forEach(function(l){ if(mergedL.indexOf(l) < 0) mergedL.push(l); });
+            if(mergedL.length !== (e.lessons || []).length){ e.lessons = mergedL; lessoned++; }
+          }
+        });
+        /* 默认展开第一个导入的册次，省得用户自己找 */
+        activeGrade = selected[0];
+        saveDB(); rebuildRound(true); saveRound();
+        renderAll();
+        toast('✅ 导入完成：新增 ' + fresh + ' 字，' + graded + ' 补充年级，' + lessoned + ' 补充课文', 3000);
+      } catch(err){
+        toast('导入失败：' + err.message);
+      }
+    });
   });
+  /* ---------- 练习范围：快捷按钮 ---------- */
   $('#quickToday').addEventListener('click', function(){
-    var t = today(); DB.settings.selectedDates = allDates().indexOf(t) >= 0 ? [t] : [];
-    onScopeChange();
-    toast(allDates().indexOf(t) >= 0 ? '已切换为仅今天' : '今天还没有添加汉字');
+    var t = today();
+    if(allDates().indexOf(t) < 0){ toast('今天还没有按日期添加的字'); return; }
+    DB.settings.selectedDates = [t]; onScopeChange(); toast('已切换为仅今天');
   });
   $('#quickAll').addEventListener('click', function(){
-    DB.settings.selectedDates = allDates(); onScopeChange(); toast('已选择全部日期');
+    var ds = allDates();
+    if(!ds.length){ toast('还没有按日期添加的字'); return; }
+    DB.settings.selectedDates = ds; onScopeChange(); toast('已选择全部日期');
+  });
+  $('#clearDates').addEventListener('click', function(){
+    DB.settings.selectedDates = []; onScopeChange(); toast('已清空日期选择');
+  });
+  $('#quickLessonAll').addEventListener('click', function(){
+    var list = (allLessons()[activeGrade] || []).slice();
+    if(!list.length){ toast('这一册还没有课文数据'); return; }
+    var merged = DB.settings.selectedLessons.slice();
+    list.forEach(function(l){ if(merged.indexOf(l) < 0) merged.push(l); });
+    DB.settings.selectedLessons = merged;
+    onScopeChange();
+    toast('已选中「' + activeGrade + '」全部 ' + list.length + ' 课');
+  });
+  $('#clearLessons').addEventListener('click', function(){
+    DB.settings.selectedLessons = []; onScopeChange(); toast('已清空课本选择');
   });
 
   $('#drawBtn').addEventListener('click', draw);
   $('#restartRoundBtn').addEventListener('click', function(){
     if(mode === 'review') return;
-    if(!scopeChars().length){ toast('所选日期还没有汉字'); return; }
+    if(!scopeChars().length){ toast('练习范围里还没有汉字，先选日期或课本'); return; }
     autoJudge(); startRound(false); toast('已重新洗牌，本轮所有字都会再抽一次');
   });
   $('#pinyinBtn').addEventListener('click', togglePinyin);
@@ -1631,13 +2062,22 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
   }
 
   /* ---------- 启动 ---------- */
-  normalize(); initSelected();
-  $('#addDate').value = today();
-  setTab(['add','pick','wrong','review'].indexOf(DB.settings.lastTab) >= 0 ? DB.settings.lastTab : 'pick');
-  rebuildRound(false);
-  if(restoreRound()) rebuildRound(true);   /* 恢复本轮进度，继续抽没抽到的字 */
-  renderAddPreview(); renderAll(); updateFileUI();
+  function boot(){
+    normalize(); initSelected();
+    $('#addDate').value = today();
+    setTab(['add','pick','wrong','review'].indexOf(DB.settings.lastTab) >= 0 ? DB.settings.lastTab : 'pick');
+    rebuildRound(false);
+    if(restoreRound()) rebuildRound(true);   /* 恢复本轮进度，继续抽没抽到的字 */
+    renderAddPreview(); renderAll(); updateFileUI();
+  }
+  function reinit(){
+    DB = loadDB();
+    boot();
+  }
+  boot();
   tryRestoreHandle();                       /* 自动接回同目录 JSON 数据文件 */
+  // 暴露给外壳 app_shell：patch localStorage 后重新加载数据
+  try { window.hanziReinit = reinit; } catch(e){}
 })();
 </script>
 </body>
