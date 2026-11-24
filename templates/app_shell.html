@@ -71,6 +71,28 @@
 
 <script src="/static/js/common.js?v=20261113b"></script>
 <script>
+// 在顶层 window 上暴露 speak 函数，iframe 里的小应用通过 window.parent.topSpeak() 调用。
+// Chrome 对跨 window 的 speechSynthesis.speak() 调用不承认属于用户手势栈，
+// 必须在顶层 window 执行才能触发；Safari/Edge/Firefox 没这个问题，但统一走顶层更稳。
+window.topSpeak = function(text, lang) {
+    try {
+        var s = window.speechSynthesis;
+        if (!s) return;
+        s.cancel();
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = lang || 'en-GB';
+        u.rate = (lang === 'zh-CN' ? 0.78 : 0.82);
+        u.pitch = 1;
+        // 选匹配语言的声音，找不到就用系统默认
+        var vs = s.getVoices() || [];
+        if (vs.length) {
+            var pick = vs.filter(function(v){ return new RegExp('^' + (lang || 'en'), 'i').test(v.lang); });
+            if (pick.length) u.voice = pick[0];
+        }
+        s.speak(u);
+    } catch (e) {}
+};
+
 (function () {
     var APP = {
         slug: {{ app.slug|tojson }},
