@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>历史记录</title>
     <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#4A90D9">
+<meta name="theme-color" content="#4B7791">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -28,7 +28,7 @@
 
     <!-- 统计概览 -->
     <div class="admin-section">
-        <h3>📊 本月统计 <button onclick="exportCSV()" style="float:right;background:#4a90d9;color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;">导出CSV</button></h3>
+        <h3>📊 本月统计 <button onclick="exportCSV()" style="float:right;background:#4b7791;color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;">导出CSV</button></h3>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;margin-bottom:16px;">
             <div style="background:#e8f5e9;border-radius:8px;padding:12px;">
                 <div style="font-size:24px;font-weight:700;color:#2e7d32;" id="statComplete">0</div>
@@ -207,11 +207,11 @@ async function showDayDetail(dateStr) {
         html += `<div style="margin:10px 0;padding:12px;background:#f8fafc;border-radius:10px;">
             <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">⏱ 时间构成</div>
             <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;background:#eee;">
-                <div style="width:${fp}%;background:#4a90d9;" title="专注"></div>
+                <div style="width:${fp}%;background:#4b7791;" title="专注"></div>
                 <div style="width:${gp}%;background:#cfd8dc;" title="停顿"></div>
             </div>
             <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;color:#666;flex-wrap:wrap;">
-                <span><i style="display:inline-block;width:10px;height:10px;background:#4a90d9;border-radius:2px;"></i> 专注 ${formatHistDur(focusSec)}</span>
+                <span><i style="display:inline-block;width:10px;height:10px;background:#4b7791;border-radius:2px;"></i> 专注 ${formatHistDur(focusSec)}</span>
                 <span><i style="display:inline-block;width:10px;height:10px;background:#cfd8dc;border-radius:2px;"></i> 停顿/切换 ${formatHistDur(gapSec)}</span>
                 <span>在座总时长 ${timeStr}</span>
             </div>

@@ -19,34 +19,41 @@ body {
     position: fixed;
     top: 0; left: 0; right: 0;
     z-index: 300;
-    background: linear-gradient(135deg, #4a90d9, #357abd);
-    color: white;
+    background: #e8e1d0;
+    color: #33302a;
+    border-bottom: 1px solid #d9d0bd;
     padding: 16px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(90, 74, 56, 0.07);
 }
 
 .top-bar h1 {
     font-size: 20px;
     font-weight: 600;
+    color: #33302a;
 }
 
 .top-bar .date-display {
     font-size: 14px;
-    opacity: 0.9;
+    color: #6f695e;
 }
 
 .admin-entry {
-    background: rgba(255,255,255,0.2);
+    background: #faf6ee;
     border: none;
-    color: white;
+    color: #4f4a41;
     width: 36px;
     height: 36px;
     border-radius: 50%;
     font-size: 18px;
     cursor: pointer;
+    transition: background .15s;
+}
+
+.admin-entry:hover {
+    background: #fffdf8;
 }
 
 /* ========== 底部导航 ========== */
@@ -55,17 +62,18 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    background: white;
+    background: #f2ecdf;
     display: flex;
     justify-content: space-around;
     padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    border-top: 1px solid #ddd3c0;
+    box-shadow: 0 -2px 10px rgba(90, 74, 56, 0.06);
     z-index: 100;
 }
 
 .bottom-nav a {
     text-decoration: none;
-    color: #999;
+    color: #6b6459;
     font-size: 12px;
     text-align: center;
     padding: 4px 12px;
@@ -75,8 +83,8 @@ body {
 }
 
 .bottom-nav a.active {
-    color: #4a90d9;
-    background: #e8f0fe;
+    color: #3f6d87;
+    background: #e2eaea;
 }
 
 .bottom-nav a .icon {
@@ -138,13 +146,13 @@ body {
 .timer-display {
     font-size: 48px;
     font-weight: 700;
-    color: #4a90d9;
+    color: #4b7791;
     font-variant-numeric: tabular-nums;
     margin: 12px 0;
 }
 
 .timer-btn {
-    background: linear-gradient(135deg, #4a90d9, #357abd);
+    background: linear-gradient(135deg, #4b7791, #3d6478);
     color: white;
     border: none;
     padding: 14px 48px;
@@ -199,7 +207,7 @@ body {
 }
 
 .eye-care-content h2 {
-    color: #4a90d9;
+    color: #4b7791;
     margin-bottom: 16px;
     font-size: 20px;
 }
@@ -233,8 +241,8 @@ body {
 
 .subject-title .badge {
     font-size: 12px;
-    background: #e8f0fe;
-    color: #4a90d9;
+    background: #e3eaea;
+    color: #3f6d87;
     padding: 2px 8px;
     border-radius: 10px;
     font-weight: normal;
@@ -279,8 +287,8 @@ body {
 }
 
 .task-checkbox.checked {
-    background: #4a90d9;
-    border-color: #4a90d9;
+    background: #4b7791;
+    border-color: #4b7791;
 }
 
 .task-checkbox.checked::after {
@@ -504,7 +512,7 @@ body {
 }
 
 .celebrate-content h2 {
-    color: #4a90d9;
+    color: #4b7791;
     margin-bottom: 12px;
 }
 
@@ -552,7 +560,7 @@ body {
 }
 
 .btn-primary {
-    background: #4a90d9;
+    background: #4b7791;
     color: white;
     border: none;
     padding: 10px 24px;
@@ -685,7 +693,7 @@ body {
 }
 
 .reward-item button {
-    background: #4a90d9;
+    background: #4b7791;
     color: white;
     border: none;
     padding: 8px 16px;
@@ -717,7 +725,9 @@ body.eye-care-mode .task-card {
     background: #fffbf0 !important;
 }
 body.eye-care-mode .top-bar {
-    background: #d4a574 !important;
+    background: #f0e6cd !important;
+    color: #453e31 !important;
+    border-bottom-color: #ded0ae !important;
 }
 
 /* ============ 深色模式 ============ */
@@ -833,7 +843,7 @@ body.dark-mode small { color: #9aa0a8 !important; }
     transition: all .15s;
 }
 .pdf-tool-btn.active {
-    background: #4a90d9;
+    background: #4b7791;
     color: white;
     border-color: #2d6fb8;
     box-shadow: 0 2px 6px rgba(74,144,217,.4);
@@ -1163,7 +1173,7 @@ input, textarea, select {
     margin-left: auto;
     background: none;
     border: none;
-    color: #4a90d9;
+    color: #4b7791;
     font-size: 13px;
     cursor: pointer;
     padding: 2px 6px;
@@ -1207,7 +1217,7 @@ body.dark-mode .notes-empty { color: #666; }
     width: 32px; height: 32px; border: none; background: transparent;
     border-radius: 4px; cursor: pointer; font-size: 18px;
 }
-.emoji-pick-btn:hover { background: #e8f0fe; }
+.emoji-pick-btn:hover { background: #efe8d9; }
 
 /* ========== 轻提示 Toast ========== */
 .toast-box {
@@ -1258,16 +1268,18 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 .top-bar {
-    background: linear-gradient(135deg, #4a7691, #3a5f76);
-    box-shadow: 0 2px 10px rgba(58, 76, 89, .16);
+    background: #e8e1d0;
+    color: #33302a;
+    border-bottom: 1px solid #d9d0bd;
+    box-shadow: 0 2px 8px rgba(90, 74, 56, .07);
 }
 .bottom-nav {
-    background: #fffdf8;
-    border-top: 1px solid #e7e0d4;
-    box-shadow: 0 -2px 10px rgba(90, 74, 56, .05);
+    background: #f2ecdf;
+    border-top: 1px solid #ddd3c0;
+    box-shadow: 0 -2px 10px rgba(90, 74, 56, .06);
 }
-.bottom-nav a { color: #7d766b; }
-.bottom-nav a.active { color: #3f6d87; background: #e9f0f3; }
+.bottom-nav a { color: #6b6459; }
+.bottom-nav a.active { color: #3f6d87; background: #e2eaea; }
 
 /* 卡片统一暖白，避免大面积纯白 */
 .timer-card,

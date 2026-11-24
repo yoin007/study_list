@@ -173,7 +173,7 @@ function ensurePinModal() {
     div.id = 'pinModal';
     div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;';
     div.innerHTML = `
-        <div style="background:#fff;border-radius:12px;padding:22px;width:90%;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+        <div style="background:#fffdf8;border-radius:12px;padding:22px;width:90%;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
             <h3 style="margin:0 0 14px;font-size:16px;text-align:center;">⚙ 家长后台验证</h3>
             <div style="position:relative;">
                 <input type="password" id="pinInput" placeholder="请输入家长PIN码" inputmode="numeric"
@@ -183,7 +183,7 @@ function ensurePinModal() {
             <div id="pinError" style="color:#c62828;font-size:12px;margin-top:6px;min-height:16px;"></div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
                 <button onclick="closePinModal()" style="padding:8px 16px;background:#f0f0f0;border:none;border-radius:8px;cursor:pointer;">取消</button>
-                <button onclick="submitPin()" style="padding:8px 16px;background:#4a90d9;color:#fff;border:none;border-radius:8px;cursor:pointer;">确定</button>
+                <button onclick="submitPin()" style="padding:8px 16px;background:#4b7791;color:#fff;border:none;border-radius:8px;cursor:pointer;">确定</button>
             </div>
         </div>`;
     document.body.appendChild(div);
@@ -309,7 +309,7 @@ function renderTaskCard(t) {
     const shownFmt = formatTaskDur(baseSec + sessSec);
     if (t.timing) {
         // 运行中：暂停 + 停止
-        html += ` <span class="task-timer" data-tid="${t.id}" data-base="${baseSec + sessSec}" data-start="${Date.now()}" style="font-size:12px;color:#4a90d9;cursor:pointer;">⏱ <span class="tt-val">${shownFmt}</span> `;
+        html += ` <span class="task-timer" data-tid="${t.id}" data-base="${baseSec + sessSec}" data-start="${Date.now()}" style="font-size:12px;color:#4b7791;cursor:pointer;">⏱ <span class="tt-val">${shownFmt}</span> `;
         html += `<span onclick="pauseTaskTimer('${t.id}')" style="margin:0 4px;">⏸暂停</span>`;
         html += `<span onclick="stopTaskTimer('${t.id}')">■停</span></span>`;
     } else if (t.paused) {
@@ -553,12 +553,12 @@ function renderHabits() {
             const running = status.hb_start && !status.hb_paused;
             const paused = !!status.hb_paused;
             const btnText = running ? '暂停' : (paused ? '继续' : '开始');
-            const btnBg = running ? '#f5a623' : '#4a90d9';
+            const btnBg = running ? '#f5a623' : '#4b7791';
             html += `<button class="habit-btn" id="habitBtn_${h.id}" onclick="toggleHabitTimer('${h.id}', ${h.minutes})" style="background:${btnBg};color:white;border:none;padding:8px 16px;border-radius:16px;cursor:pointer;font-size:13px;">${btnText}</button>`;
             html += `<span class="habit-countdown" id="countdown_${h.id}"
                 data-target="${target}" data-base="${status.hb_elapsed||0}"
                 data-start="${status.hb_start||''}" data-paused="${paused?1:0}"
-                style="font-size:18px;font-weight:700;color:#4a90d9;font-variant-numeric:tabular-nums;${(running||paused)?'':'display:none;'}">${formatHabitDur(remaining)}</span>`;
+                style="font-size:18px;font-weight:700;color:#4b7791;font-variant-numeric:tabular-nums;${(running||paused)?'':'display:none;'}">${formatHabitDur(remaining)}</span>`;
         } else {
             // 无倒计时的检查项
             html += `<button onclick="toggleHabit('${h.id}')" style="background:#f0f0f0;color:#666;border:none;padding:8px 16px;border-radius:16px;cursor:pointer;font-size:13px;">完成打勾</button>`;
@@ -604,7 +604,7 @@ async function toggleHabit(habitId) {
 
 // ========== 今日积分 ==========
 // ========== 当天时间分配（专注条形） ==========
-const SUBJECT_COLORS = {'语文':'#4a90d9','数学':'#f5a623','英语':'#7e57c2'};
+const SUBJECT_COLORS = {'语文':'#4b7791','数学':'#f5a623','英语':'#7e57c2'};
 function subjectColor(s){ return SUBJECT_COLORS[s] || '#8aa0b8'; }
 function renderFocusChart() {
     const card = document.getElementById('focusChartCard');
@@ -638,7 +638,7 @@ function renderFocusChart() {
         const label = r.desc.length > 14 ? r.desc.slice(0,14)+'…' : r.desc;
         return `<div style="margin:8px 0;">
             <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;">
-                <span>${r.subject} · ${label}${r.live?' <span style="color:#4a90d9;">●</span>':''}</span>
+                <span>${r.subject} · ${label}${r.live?' <span style="color:#4b7791;">●</span>':''}</span>
                 <span style="font-variant-numeric:tabular-nums;color:#555;">${formatTime(r.sec)}</span>
             </div>
             <div style="background:#f0f2f5;border-radius:6px;height:10px;overflow:hidden;">
@@ -909,7 +909,7 @@ function showAttachment(filename, type, attachmentId) {
                 </div>
                 <span style="width:1px;height:20px;background:#ddd;margin:0 4px;"></span>
                 <button onclick="clearCanvas()" style="background:#ffebee;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;color:#c62828;">清空</button>
-                <button onclick="exportPDF()" style="background:#4a90d9;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">导出</button>
+                <button onclick="exportPDF()" style="background:#4b7791;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">导出</button>
             </div>
             <div style="width:100%;overflow:auto;max-height:80vh;border:1px solid #eee;border-radius:8px;" id="pdfContainer">
                 <div style="position:relative;width:max-content;margin:0 auto;">

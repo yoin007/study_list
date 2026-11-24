@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>家长后台</title>
     <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#4A90D9">
+<meta name="theme-color" content="#4B7791">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -22,7 +22,7 @@
         <div class="date-display" id="adminDateDisplay" style="font-size:13px;opacity:0.8;"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
-        <select id="adminChildSelector" onchange="switchAdminChild()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:12px;padding:4px 10px;font-size:13px;">
+        <select id="adminChildSelector" onchange="switchAdminChild()" style="background:#faf6ee;color:#4f4a41;border:1px solid #d9d0bd;border-radius:12px;padding:4px 10px;font-size:13px;">
         </select>
         <button id="adminDarkToggle" class="admin-entry" onclick="toggleDarkMode()" title="深色模式">🌙</button>
         <button class="admin-entry" onclick="window.location.href='/'" title="返回孩子端">🏠</button>
@@ -42,7 +42,7 @@
 
     <!-- 标签页导航 -->
     <div class="tab-bar" style="display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #eee;overflow-x:auto;scrollbar-width:none;">
-        <button class="tab-btn active" onclick="switchTab('tasks')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#4a90d9;border-bottom:2px solid #4a90d9;margin-bottom:-2px;">📋 今日任务</button>
+        <button class="tab-btn active" onclick="switchTab('tasks')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#4b7791;border-bottom:2px solid #4b7791;margin-bottom:-2px;">📋 今日任务</button>
         <button class="tab-btn" onclick="switchTab('children')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px;">👶 孩子管理</button>
         <button class="tab-btn" onclick="switchTab('week')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px;">📅 周计划</button>
         <button class="tab-btn" onclick="switchTab('mistakes')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-size:14px;font-weight:600;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px;">❓ 错题库</button>
@@ -70,7 +70,7 @@
 
             <!-- AI解析提示词（折叠展示） -->
             <div style="margin-top:16px;border-top:1px solid #eee;padding-top:12px;">
-                <div onclick="togglePrompt()" style="cursor:pointer;font-size:13px;color:#4a90d9;user-select:none;">
+                <div onclick="togglePrompt()" style="cursor:pointer;font-size:13px;color:#4b7791;user-select:none;">
                     📋 点击展开：AI作业解析提示词（复制给AI用）
                 </div>
                 <div id="promptContent" style="display:none;margin-top:8px;background:#f8f9fa;padding:12px;border-radius:8px;font-size:12px;color:#555;line-height:1.6;white-space:pre-wrap;">
@@ -280,7 +280,7 @@
         <div class="admin-section">
             <h3>🔧 系统设置</h3>
             <div style="margin-bottom:12px;">
-                <label style="font-size:13px;color:#666;">语音播报语速：<span id="speechRateVal" style="font-weight:600;color:#4a90d9;">0.9</span>（慢0.5 ~ 快1.5，儿童建议0.8~1.0）</label>
+                <label style="font-size:13px;color:#666;">语音播报语速：<span id="speechRateVal" style="font-weight:600;color:#4b7791;">0.9</span>（慢0.5 ~ 快1.5，儿童建议0.8~1.0）</label>
                 <input type="range" id="cfg_speech_rate" min="0.5" max="1.5" step="0.1" value="0.9"
                        oninput="document.getElementById('speechRateVal').textContent=this.value"
                        style="width:100%;margin-top:6px;">
@@ -306,7 +306,7 @@
 
 <!-- 通用任务编辑弹窗 -->
 <div id="taskEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:12px;padding:20px;width:92%;max-width:460px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+    <div style="background:#fffdf8;border-radius:12px;padding:20px;width:92%;max-width:460px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
         <h3 style="margin:0 0 14px;font-size:16px;">✏️ 编辑任务</h3>
         <label style="font-size:13px;color:#666;">科目</label>
         <input id="te_subject" style="width:100%;margin:4px 0 12px;padding:8px;border:1px solid #e0e0e0;border-radius:6px;box-sizing:border-box;">
@@ -325,7 +325,7 @@
 
 <!-- 贴纸选择弹窗 -->
 <div id="stickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:12px;padding:20px;width:92%;max-width:380px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+    <div style="background:#fffdf8;border-radius:12px;padding:20px;width:92%;max-width:380px;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
         <h3 style="margin:0 0 14px;font-size:16px;">🎨 选择贴纸头像</h3>
         <div id="stickerGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;"></div>
         <div style="display:flex;justify-content:flex-end;margin-top:14px;">
@@ -377,8 +377,8 @@ function switchTab(tabName) {
         btn.style.borderBottom = '2px solid transparent';
     });
     event.target.classList.add('active');
-    event.target.style.color = '#4a90d9';
-    event.target.style.borderBottom = '2px solid #4a90d9';
+    event.target.style.color = '#4b7791';
+    event.target.style.borderBottom = '2px solid #4b7791';
 }
 
 // 折叠/展开AI提示词
@@ -704,7 +704,7 @@ async function loadWeek(offset) {
     let html = '';
     data.days.forEach(day => {
         const pct = day.total ? Math.round(day.done_count/day.total*100) : 0;
-        const todayCls = day.is_today ? 'style="border:2px solid #4a90d9;"' : '';
+        const todayCls = day.is_today ? 'style="border:2px solid #4b7791;"' : '';
         html += `<div class="admin-section" ${todayCls} style="margin-bottom:10px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
                 <strong>${day.weekday} ${day.date}${day.is_today ? '（今天）' : ''}</strong>
@@ -726,7 +726,7 @@ async function loadWeek(offset) {
         if (day.tasks.length === 0) html += `<div style="font-size:12px;color:#bbb;padding:4px 0;">暂无任务</div>`;
         html += `</div>
             <details style="margin-top:8px;">
-                <summary style="font-size:13px;color:#4a90d9;cursor:pointer;">＋ 给这一天添加任务</summary>
+                <summary style="font-size:13px;color:#4b7791;cursor:pointer;">＋ 给这一天添加任务</summary>
                 <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
                     <input type="text" id="wsubj_${day.date}" placeholder="科目" style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;width:80px;">
                     <input type="text" id="wdesc_${day.date}" placeholder="任务描述" style="padding:6px;border:1px solid #e0e0e0;border-radius:6px;flex:1;min-width:160px;">
@@ -960,7 +960,7 @@ function exportReviewSheet() {
         });
         const w = window.open('', '_blank');
         w.document.write(`<html><head><meta charset="utf-8"><title>错题复习卷 ${todayISO()}</title>
-        <style>body{font-family:sans-serif;max-width:720px;margin:30px auto;padding:0 20px;}h1{font-size:20px;}h2{font-size:16px;border-left:4px solid #4a90d9;padding-left:8px;margin-top:24px;}div{font-size:15px;line-height:1.8;}</style></head>
+        <style>body{font-family:sans-serif;max-width:720px;margin:30px auto;padding:0 20px;}h1{font-size:20px;}h2{font-size:16px;border-left:4px solid #4b7791;padding-left:8px;margin-top:24px;}div{font-size:15px;line-height:1.8;}</style></head>
         <body onload="window.print()"><h1>错题复习卷（${todayISO()}）</h1>${body}</body></html>`);
         w.document.close();
     });
@@ -1067,7 +1067,7 @@ async function loadAdminTasks() {
         html += `<div style="display:flex;justify-content:space-between;align-items:start;">`;
         html += `<div><span style="color:#bbb;margin-right:6px;">⋮⋮</span><span style="background:#e3f2fd;color:#1565c0;font-size:12px;padding:2px 8px;border-radius:4px;margin-right:6px;">${t.subject}</span><strong>[${t.priority}]</strong> ${t.desc}</div>`;
         html += `<div style="display:flex;gap:4px;">
-            <button onclick="editTask('${t.id}')" style="background:#4a90d9;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">编辑</button>
+            <button onclick="editTask('${t.id}')" style="background:#4b7791;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">编辑</button>
             <button onclick="deferTask('${t.id}')" style="background:#9c27b0;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">延后</button>
             <button onclick="deleteTask('${t.id}')" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">删除</button>
         </div>`;

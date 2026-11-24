@@ -82,7 +82,7 @@ function pinDialog(title = '请输入家长 PIN 码') {
                            style="width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;font-size:18px;text-align:center;letter-spacing:8px;box-sizing:;">
                     <div style="display:flex;gap:10px;margin-top:18px;">
                         <button id="pinCancel" style="flex:1;padding:10px;border:1px solid #ddd;background:white;border-radius:10px;font-size:14px;cursor:pointer;color:#666;">取消</button>
-                        <button id="pinOk" style="flex:1;padding:10px;border:none;background:#4a90d9;color:white;border-radius:10px;font-size:14px;cursor:pointer;">确定</button>
+                        <button id="pinOk" style="flex:1;padding:10px;border:none;background:#4b7791;color:white;border-radius:10px;font-size:14px;cursor:pointer;">确定</button>
                     </div>
                     <p id="pinError" style="color:#e74c3c;font-size:12px;margin:10px 0 0;display:none;"></p>
                 </div>`;
@@ -179,14 +179,14 @@ async function renderTopBarActions(opts = {}) {
 
     let html = '';
     if (children.length > 1) {
-        html += `<select id="globalChildSelect" onchange="switchGlobalChild()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:12px;padding:4px 10px;font-size:13px;appearance:none;cursor:pointer;">`;
+        html += `<select id="globalChildSelect" onchange="switchGlobalChild()" style="background:#faf6ee;color:#4f4a41;border:1px solid #d9d0bd;border-radius:12px;padding:4px 10px;font-size:13px;appearance:none;cursor:pointer;">`;
         children.forEach(c => {
             const sel = (me && String(c.id) === String(me.id)) ? ' selected' : '';
             html += `<option value="${c.id}"${sel} style="color:#333;background:white;">${c.name}</option>`;
         });
         html += `</select>`;
     } else if (me) {
-        html += `<span style="color:white;font-size:13px;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;">👶 ${me.name}</span>`;
+        html += `<span style="color:#4f4a41;font-size:13px;background:#faf6ee;padding:4px 12px;border-radius:12px;">👶 ${me.name}</span>`;
     }
     html += `<button class="admin-entry" id="darkToggle" onclick="toggleDarkMode()" title="深色模式">🌙</button>`;
     if (!opts.isAdmin) {
