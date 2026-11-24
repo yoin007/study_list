@@ -69,9 +69,8 @@ let rewardsChildId = 1;
 (async () => {
     const me = await getCurrentChild();
     if (me) rewardsChildId = me.id;
+    await loadData();  // loadData 会更新 #totalPoints + 奖励列表 + 积分记录
     loadBadges();
-    loadRewardList();
-    loadPointsRecords();
 })();
 
 async function loadBadges() {
@@ -163,8 +162,6 @@ async function redeem(rewardId) {
         alert(data.error || '兑换失败');
     }
 }
-
-loadRewardsChildren().then(() => loadData());
 </script>
 
 </body>
