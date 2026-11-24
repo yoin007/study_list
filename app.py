@@ -617,6 +617,11 @@ def notes_view():
     return render_template('notes.html')
 
 
+@app.route('/guide')
+def guide():
+    return render_template('guide.html')
+
+
 # ============ 小应用（单网页应用）============
 # 约定：把任意单网页应用放到 static/apps/<slug>/ 下，并提供一个 app.json：
 #   { "name": "汉字随机认读", "icon": "字", "desc": "...", "entry": "index.html",
