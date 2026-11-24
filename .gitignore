@@ -43,6 +43,9 @@ Thumbs.db
 .trae-html-share-packages/
 .trae/
 
+# ========== Evolver 工具数据（本地演化记忆） ==========
+.evolver/
+
 # 汉字应用：笔顺字库与个人学习数据不入库，教材字库要保留
 static/apps/hanzi/data/*.json
 !static/apps/hanzi/data/pep_xiezi.json
