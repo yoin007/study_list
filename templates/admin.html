@@ -346,7 +346,7 @@
 let currentStar = 0;
 
 let rewardsConfig = [];
-let adminChildId = 1;
+let adminChildId = parseInt(localStorage.getItem('adminChildId')) || 1;
 let adminChildName = '';
 
 // common.js 提供 initDarkMode/toggleDarkMode/getCurrentChild/loadChildren
@@ -405,6 +405,7 @@ async function loadAdminChildren() {
         if (!adminChildId || !data.children.find(c => c.id === adminChildId)) {
             adminChildId = data.children[0].id;
             sel.value = adminChildId;
+            localStorage.setItem('adminChildId', adminChildId);
         }
         const current = data.children.find(c => c.id === adminChildId);
         if (current) {
@@ -462,6 +463,7 @@ function switchAdminChild() {
     adminChildId = parseInt(document.getElementById('adminChildSelector').value);
     adminChildName = document.getElementById('adminChildSelector').options[document.getElementById('adminChildSelector').selectedIndex].textContent;
     document.getElementById('currentAdminChild').textContent = adminChildName;
+    localStorage.setItem('adminChildId', adminChildId);
     loadAdminTasks();
     loadSettings();
     loadHabits();

@@ -359,14 +359,47 @@ def get_children():
 
 
 def get_child_id():
-    """优先从请求参数获取child_id（家长后台用），没有则用session（孩子端用）"""
-    cid = request.args.get('child_id', request.form.get('child_id'))
-    if cid:
-        try:
-            return int(cid)
-        except:
+    """获取当前请求的孩子 ID，安全隔离：
+    - 家长后台（admin_authed session）：优先从 query/form 参数 child_id 获取
+    - 孩子端：从 session['child_id'] 获取，禁止 query 参数绕过
+    - 都没有则返回 None（禁止默认回退到 1）"""
+    is_admin = session.get('admin_authed')
+    # 家长后台：允许从 query/form 参数拿 child_id（前端切换孩子时拼在 URL 上）
+    if is_admin:
+        cid = request.args.get('child_id', request.form.get('child_id'))
+        if cid:
+            try:
+                return int(cid)
+            except:
+                pass
+    # 孩子端或 admin 没传参数时：从 session 取（admin 也允许 session 回退，
+    # 比如 admin 页面没显式传 child_id 但 session 里还有之前孩子端的登录态）
+    cid = session.get('child_id')
+    if cid is not None:
+        return int(cid)
+    return None
+
+
+def require_child_id():
+    """路由入口守卫：
+    - admin 会话：允许，child_id 由 get_child_id() 提供（信任前端传的 child_id 参数）
+    - 非 admin 会话：必须 session['child_id'] 存在，否则 401
+    """
+    cid = get_child_id()
+    if cid is None:
+        return None, jsonify({'error': '请先登录'}), 401
+    # 非 admin 时，额外确认没被 query 参数绕过
+    if not session.get('admin_authed'):
+        # 再次确认 query 参数没有生效（防御性校验）
+        q_cid = request.args.get('child_id', request.form.get('child_id'))
+        if q_cid is not None:
+            # query 参数被忽略是 get_child_id() 的设计，这里不需要额外处理
             pass
-    return session.get('child_id', 1)
+    return cid, None, None
+
+
+def _api_err(msg, code=400):
+    return jsonify({'error': msg}), code
 
 
 # ============ 积分计算 ============
@@ -855,7 +888,8 @@ def api_set_sticker(child_id):
 # ============ API: 手动添加任务 ============
 @app.route('/api/task/add', methods=['POST'])
 def api_add_task():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     data = request.json
     db = get_db()
     target_date = data.get('date') or date.today().isoformat()
@@ -934,7 +968,8 @@ def save_timer_state(child_id):
 @app.route('/api/today')
 def api_today():
     auto_backup()
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     today = date.today().isoformat()
     db = get_db()
 
@@ -1024,7 +1059,8 @@ def api_today():
 # ============ API: 周计划（本周一~周日） ============
 @app.route('/api/week')
 def api_week():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     ref = request.args.get('date')
     try:
         base = datetime.strptime(ref, '%Y-%m-%d').date() if ref else date.today()
@@ -1056,7 +1092,8 @@ def api_week():
 # ============ API: 任务导入 ============
 @app.route('/api/tasks/import', methods=['POST'])
 def api_import():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     data = request.json
     text = data.get('text', '')
     target_date = data.get('date', date.today().isoformat())
@@ -1452,7 +1489,8 @@ def api_delete_task(task_id):
 # ============ API: 计时器 ============
 @app.route('/api/timer/start', methods=['POST'])
 def api_timer_start():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     ts = get_timer_state(child_id)
     ts['status'] = 'running'
     ts['start_time'] = datetime.now().isoformat()
@@ -1474,7 +1512,8 @@ def api_timer_start():
 
 @app.route('/api/timer/pause', methods=['POST'])
 def api_timer_pause():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     ts = get_timer_state(child_id)
     today = date.today().isoformat()
     db = get_db()
@@ -1500,7 +1539,8 @@ def api_timer_pause():
 @app.route('/api/timer/suspend', methods=['POST'])
 def api_timer_suspend():
     """作业结束挂起墙钟：暂停但不增加休息次数（区别于手动暂停）。"""
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     ts = get_timer_state(child_id)
     now_iso = datetime.now().isoformat()
     if ts['status'] == 'running':
@@ -1511,7 +1551,8 @@ def api_timer_suspend():
 
 @app.route('/api/timer/stop', methods=['POST'])
 def api_timer_stop():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     ts = get_timer_state(child_id)
     today = date.today().isoformat()
 
@@ -1540,7 +1581,8 @@ def api_timer_stop():
 
 @app.route('/api/timer/reset', methods=['POST'])
 def api_timer_reset():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     timer_state[child_id] = {
         'status': 'idle', 'start_time': None, 'pause_start': None,
         'total_paused': 0, 'pause_count': 0, 'date': date.today().isoformat()
@@ -1585,7 +1627,8 @@ def api_admin_reset_timer():
 # ============ API: 习惯任务 ============
 @app.route('/api/habit/<habit_id>/toggle', methods=['POST'])
 def api_toggle_habit(habit_id):
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     today = date.today().isoformat()
     db = get_db()
     existing = db.execute("SELECT done FROM habit_records WHERE child_id=? AND date=? AND habit_id=?",
@@ -1616,7 +1659,8 @@ def _habit_live_elapsed(row):
 
 @app.route('/api/habit/<habit_id>/timer/start', methods=['POST'])
 def api_habit_timer_start(habit_id):
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     today = date.today().isoformat()
     db = get_db()
     h = db.execute("SELECT minutes FROM habits WHERE id=? AND child_id=?", (habit_id, child_id)).fetchone()
@@ -1656,7 +1700,8 @@ def api_habit_timer_start(habit_id):
 
 @app.route('/api/habit/<habit_id>/timer/pause', methods=['POST'])
 def api_habit_timer_pause(habit_id):
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     today = date.today().isoformat()
     db = get_db()
     row = db.execute("SELECT hb_start, hb_paused, hb_elapsed FROM habit_records "
@@ -1681,7 +1726,8 @@ def api_habit_timer_pause(habit_id):
 
 @app.route('/api/habit/<habit_id>/timer/stop', methods=['POST'])
 def api_habit_timer_stop(habit_id):
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     today = date.today().isoformat()
     db = get_db()
     db.execute("""UPDATE habit_records SET hb_start=NULL, hb_pause_start=NULL, hb_paused=0,
@@ -1693,7 +1739,8 @@ def api_habit_timer_stop(habit_id):
 
 @app.route('/api/habit/pause', methods=['POST'])
 def api_habit_pause():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     today = date.today().isoformat()
     db = get_db()
     db.execute("UPDATE daily_records SET habit_pause_count = habit_pause_count + 1 WHERE child_id=? AND date=?",
@@ -1705,7 +1752,8 @@ def api_habit_pause():
 # ============ API: 家长评价 ============
 @app.route('/api/admin/rate', methods=['POST'])
 def api_admin_rate():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     data = request.json
     today = date.today().isoformat()
     db = get_db()
@@ -1829,7 +1877,8 @@ def api_save_annotations(attachment_id):
 # ============ API: 历史记录 ============
 @app.route('/api/history/<target_date>')
 def api_history_day(target_date):
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     db = get_db()
     tasks = db.execute("SELECT * FROM tasks WHERE child_id=? AND date=? ORDER BY sort_order, rowid",
                        (child_id, target_date)).fetchall()
@@ -1860,7 +1909,8 @@ def api_history_day(target_date):
 
 @app.route('/api/history/calendar')
 def api_history_calendar():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     year = request.args.get('year', datetime.now().year)
     month = request.args.get('month', datetime.now().month)
     import calendar as cal_module
@@ -1898,7 +1948,8 @@ def api_history_calendar():
 # ============ API: 积分 ============
 @app.route('/api/points')
 def api_points():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     db = get_db()
     rows = db.execute("SELECT * FROM points_records WHERE child_id=? ORDER BY id DESC LIMIT 50", (child_id,)).fetchall()
     total = db.execute("SELECT COALESCE(SUM(points),0) as s FROM points_records WHERE child_id=?", (child_id,)).fetchone()['s']
@@ -1907,7 +1958,8 @@ def api_points():
 
 @app.route('/api/points/redeem', methods=['POST'])
 def api_redeem():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     data = request.json
     reward_id = data.get('reward_id')
     settings = get_all_settings()
@@ -1930,7 +1982,8 @@ def api_redeem():
 # ============ API: 连续打卡 ============
 @app.route('/api/streak')
 def api_streak():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     db = get_db()
     streak = 0
     check_date = date.today()
@@ -1970,7 +2023,8 @@ def api_settings():
 # ============ API: 习惯任务管理 ============
 @app.route('/api/habits', methods=['GET', 'POST'])
 def api_habits_manage():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     db = get_db()
     if request.method == 'GET':
         rows = db.execute("SELECT * FROM habits WHERE child_id=?", (child_id,)).fetchall()
@@ -1990,7 +2044,8 @@ def api_habits_manage():
 # ============ API: 错题库 ============
 @app.route('/api/mistakes', methods=['GET', 'POST'])
 def api_mistakes():
-    child_id = get_child_id()
+    child_id, err, code = require_child_id()
+    if err: return err, code
     db = get_db()
     if request.method == 'GET':
         subject = request.args.get('subject', '')

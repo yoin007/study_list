@@ -158,7 +158,10 @@ async function verifyPin() {
 async function getCurrentChild() {
     try {
         const r = await fetch(`${API}/current_user`);
-        return (await r.json()).child;
+        const d = await r.json();
+        // /api/current_user 返回 {child_id, name}，拼个完整对象返回
+        if (d.child_id == null) return null;
+        return { id: d.child_id, name: d.name };
     } catch { return null; }
 }
 
