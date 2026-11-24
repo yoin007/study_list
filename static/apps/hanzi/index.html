@@ -1592,7 +1592,7 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     $('#pinyinPlaceholder').innerHTML = PLACEHOLDER;
     $('#judgeBar').classList.remove('hidden');
     updateJudgeUI(); updateProgress();
-    if('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if('speechSynthesis' in _ttsWinH) _ttsWinH.speechSynthesis.cancel();
   }
 
   /* ---------- 对错判定与复习算法 ---------- */
@@ -1728,12 +1728,15 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     renderWordBox();
     shown = true; revealed++; updateProgress();
   }
+  // 优先走顶层 speechSynthesis——本应用嵌在 app_shell.html 的 iframe 里，
+  // 浏览器对 iframe 内的 speechSynthesis 有静默失败限制，同源可访问 window.top.speechSynthesis
+  var _ttsWinH = (function(){ try { return window.top && window.top.speechSynthesis ? window.top : window; } catch(e){ return window; } })();
   function speak(){
     if(!current){ toast('先抽一个汉字'); return; }
-    if(!('speechSynthesis' in window)){ toast('当前浏览器不支持朗读，请用 Chrome / Edge / Safari'); return; }
-    var synth = window.speechSynthesis;
+    if(!('speechSynthesis' in _ttsWinH)){ toast('当前浏览器不支持朗读，请用 Chrome / Edge / Safari'); return; }
+    var synth = _ttsWinH.speechSynthesis;
     synth.cancel();
-    var u = new SpeechSynthesisUtterance(current);
+    var u = new _ttsWinH.SpeechSynthesisUtterance(current);
     u.lang = 'zh-CN'; u.rate = 0.78; u.pitch = 1.02;
     var voices = synth.getVoices() || [], zh = voices.filter(function(v){ return /^zh/i.test(v.lang); });
     if(zh.length) u.voice = zh[0];
@@ -2239,10 +2242,10 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     else if(/^b$/i.test(e.key)){ e.preventDefault(); showStroke(); }
   });
 
-  if('speechSynthesis' in window){
-    window.speechSynthesis.getVoices();
-    if(window.speechSynthesis.addEventListener)
-      window.speechSynthesis.addEventListener('voiceschanged', function(){ window.speechSynthesis.getVoices(); });
+  if('speechSynthesis' in _ttsWinH){
+    _ttsWinH.speechSynthesis.getVoices();
+    if(_ttsWinH.speechSynthesis.addEventListener)
+      _ttsWinH.speechSynthesis.addEventListener('voiceschanged', function(){ _ttsWinH.speechSynthesis.getVoices(); });
   }
 
   /* ---------- 启动 ---------- */

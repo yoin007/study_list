@@ -303,28 +303,45 @@
     return DB.words[w];
   }
 
-  /* ---------------- 发音（浏览器 TTS） ---------------- */
-  var ttsOk = ('speechSynthesis' in window);
+  /* ---------------- 发音（浏览器 TTS，iframe 里走顶层 speechSynthesis） ---------------- */
+  // 优先用顶层页面的 speechSynthesis——英语应用嵌在 app_shell.html 的 iframe 里，
+  // 浏览器对 iframe 内的 speechSynthesis 有静默失败限制（iOS Safari 完全不出声），
+  // 同源页面可以直接访问 window.top.speechSynthesis，绕过限制。
+  var _ttsWin = (function(){
+    try { return window.top && window.top.speechSynthesis ? window.top : window; } catch(e) { return window; }
+  })();
+  var ttsOk = ('speechSynthesis' in _ttsWin);
   function speak(text){
     if(!ttsOk){ toast('当前浏览器不支持朗读'); return; }
     try{
-      window.speechSynthesis.cancel();
-      var u = new SpeechSynthesisUtterance(text);
+      _ttsWin.speechSynthesis.cancel();
+      var u = new _ttsWin.SpeechSynthesisUtterance(text);
       u.lang = 'en-GB';
       u.rate = 0.82;
       u.pitch = 1;
-      var vs = window.speechSynthesis.getVoices() || [];
+      var vs = _ttsWin.speechSynthesis.getVoices() || [];
       var pick = vs.filter(function(v){ return /^en/i.test(v.lang); });
       var gb = pick.filter(function(v){ return /GB/i.test(v.lang); })[0];
       if(gb) u.voice = gb; else if(pick.length) u.voice = pick[0];
-      window.speechSynthesis.speak(u);
-    }catch(e){}
+      _ttsWin.speechSynthesis.speak(u);
+    }catch(e){
+      // 顶层不可用时降级用 iframe 自己的 speechSynthesis
+      try {
+        window.speechSynthesis.cancel();
+        var u2 = new SpeechSynthesisUtterance(text);
+        u2.lang = 'en-GB';
+        u2.rate = 0.82;
+        var vs2 = window.speechSynthesis.getVoices() || [];
+        var pick2 = vs2.filter(function(v){ return /^en/i.test(v.lang); });
+        if(pick2.length) u2.voice = pick2[0];
+        window.speechSynthesis.speak(u2);
+      } catch(e2) {}
+    }
   }
   if(ttsOk){
-    // 部分浏览器需要预热一次语音列表
-    window.speechSynthesis.getVoices();
-    if(window.speechSynthesis.onvoiceschanged !== undefined){
-      window.speechSynthesis.onvoiceschanged = function(){ window.speechSynthesis.getVoices(); };
+    _ttsWin.speechSynthesis.getVoices();
+    if(_ttsWin.speechSynthesis.onvoiceschanged !== undefined){
+      _ttsWin.speechSynthesis.onvoiceschanged = function(){ _ttsWin.speechSynthesis.getVoices(); };
     }
   }
 
