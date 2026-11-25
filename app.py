@@ -555,6 +555,41 @@ def settle_day(child_id, day_str, settings=None):
     return points, details
 
 
+def backfill_history_points():
+    """启动时补结算历史上「有记录但账本无每日结算」的日期。
+
+    覆盖「做完作业直接关服务、当天没再打开孩子端」导致的漏结算。
+    只补缺失的日期，不改写已有记录，幂等。
+    """
+    db = get_db()
+    settings = get_all_settings()
+    today = date.today().isoformat()
+    rows = db.execute("""
+        SELECT s.child_id, s.d FROM (
+            SELECT child_id, COALESCE(original_date, date) AS d FROM tasks
+            UNION
+            SELECT child_id, date AS d FROM habit_records
+            UNION
+            SELECT child_id, date AS d FROM daily_records
+        ) s
+        LEFT JOIN points_records p
+          ON p.child_id = s.child_id AND p.date = s.d AND p.type = 'daily'
+        WHERE p.id IS NULL AND s.d IS NOT NULL AND s.d < ?
+        GROUP BY s.child_id, s.d
+    """, (today,)).fetchall()
+    count = 0
+    for r in rows:
+        pts, details = compute_points(r['child_id'], r['d'], settings)
+        if pts > 0:
+            db.execute("INSERT INTO points_records (child_id, date, points, reason, detail, type) VALUES (?, ?, ?, ?, ?, 'daily')",
+                       (r['child_id'], r['d'], pts, f'每日结算（{len(details)}项）',
+                        json.dumps(details, ensure_ascii=False)))
+            count += 1
+    if count:
+        db.commit()
+    return count
+
+
 # ============ 自动备份 ============
 def _export_data_dict(db):
     """从连接好的 db 导出完整数据字典（auto_backup 和手动导出共用）"""
@@ -2747,6 +2782,14 @@ def api_backup_restore():
 if __name__ == '__main__':
     import sys
     init_db()
+    # 启动时补结算漏掉的历史积分（覆盖当天没打开孩子端就关服务的情况）
+    try:
+        with app.app_context():
+            n = backfill_history_points()
+            if n:
+                print(f"  已补结算 {n} 天历史积分")
+    except Exception as e:
+        print("  补结算历史积分失败:", e)
     db = sqlite3.connect(DB_PATH)
     port_row = db.execute("SELECT value FROM settings WHERE key='port'").fetchone()
     port = int(port_row[0]) if port_row else 8000
