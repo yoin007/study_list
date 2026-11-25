@@ -1038,14 +1038,37 @@ def get_timer_state(child_id):
         db = get_db()
         dr = db.execute("SELECT * FROM daily_records WHERE child_id=? AND date=?", (child_id, today)).fetchone()
         if dr and dr['start_time'] and not dr['end_time']:
-            timer_state[child_id] = {
-                'status': 'running',
-                'start_time': dr['start_time'],
-                'pause_start': None,
-                'total_paused': 0,
-                'pause_count': dr['pause_count'],
-                'date': today
-            }
+            # 只有确实有任务正在计时，才恢复为 running；否则按「已挂起」处理。
+            # 否则服务关闭期间的时间会被算进用时（导致历史用时虚高）。
+            running_task = db.execute(
+                "SELECT 1 FROM tasks WHERE child_id=? AND date=? AND tt_start IS NOT NULL AND tt_pause_start IS NULL LIMIT 1",
+                (child_id, today)).fetchone()
+            if running_task:
+                timer_state[child_id] = {
+                    'status': 'running',
+                    'start_time': dr['start_time'],
+                    'pause_start': None,
+                    'total_paused': 0,
+                    'pause_count': dr['pause_count'],
+                    'date': today
+                }
+            else:
+                # 挂起时刻取最后一个任务的完成时间；没有完成任务时沿用已保存用时
+                last_done = db.execute("SELECT MAX(done_time) AS m FROM tasks WHERE child_id=? AND date=?",
+                                       (child_id, today)).fetchone()['m']
+                if last_done:
+                    pause_start = last_done
+                else:
+                    base = datetime.fromisoformat(dr['start_time']) + timedelta(seconds=dr['elapsed_seconds'] or 0)
+                    pause_start = base.isoformat()
+                timer_state[child_id] = {
+                    'status': 'paused',
+                    'start_time': dr['start_time'],
+                    'pause_start': pause_start,
+                    'total_paused': 0,
+                    'pause_count': dr['pause_count'],
+                    'date': today
+                }
         else:
             timer_state[child_id] = {
                 'status': 'idle', 'start_time': None, 'pause_start': None,
@@ -1140,8 +1163,9 @@ def api_today():
         elapsed = int((datetime.now() - datetime.fromisoformat(ts['start_time'])).total_seconds() - ts['total_paused'])
     elif ts['status'] == 'paused' and ts['start_time']:
         elapsed = int((datetime.fromisoformat(ts['pause_start']) - datetime.fromisoformat(ts['start_time'])).total_seconds() - ts['total_paused'])
-    elif ts['status'] == 'done':
-        elapsed = dr['elapsed_seconds'] if dr else 0
+    elif ts['status'] in ('done', 'idle'):
+        # 已结束或未开始：显示当天已保存的用时，避免刷新后归零
+        elapsed = (dr['elapsed_seconds'] or 0) if dr else 0
 
     # running/paused 时把实时用时增量落库，避免忘记点结束导致历史为0
     if ts['status'] in ('running', 'paused') and elapsed > 0:
