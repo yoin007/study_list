@@ -13,6 +13,22 @@
 <link rel="apple-touch-icon" href="/static/icon.svg">
 <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/css/style.css?v=20261113">
+<style>
+.points-split { font-size:13px; color:#8a8277; margin-top:6px; }
+.points-split b { color:#5a5248; }
+.rec-tabs { display:flex; gap:8px; margin-bottom:10px; }
+.rec-tab {
+    flex:1; padding:8px 0; font-size:14px; border:1px solid #e7e0d4; border-radius:8px;
+    background:#faf7f0; color:#6b6459; cursor:pointer; font-family:inherit;
+}
+.rec-tab.active { background:#e8e1d0; color:#3a352e; font-weight:600; border-color:#d9d0bf; }
+.rec-item { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid #f1ece2; font-size:14px; }
+.rec-item .rec-main { flex:1; min-width:0; }
+.rec-item .rec-date { font-size:12px; color:#9a9388; margin-bottom:2px; }
+.rec-item .rec-detail { font-size:12px; color:#8a8277; margin-top:3px; line-height:1.6; }
+.rec-item .rec-pts { font-weight:600; white-space:nowrap; }
+.rec-empty { color:#9a9388; font-size:14px; padding:12px 0; text-align:center; }
+</style>
 </head>
 <body>
 
@@ -28,8 +44,9 @@
 
     <!-- 当前积分 -->
     <div class="points-big">
-        <div style="font-size:14px;color:#999;">当前积分</div>
+        <div style="font-size:14px;color:#999;">当前可用积分</div>
         <div class="number" id="totalPoints">0</div>
+        <div class="points-split">累计 <b id="earnedPoints">0</b> · 已兑换 <b id="spentPoints">0</b></div>
     </div>
 
     <!-- 徽章墙 -->
@@ -47,7 +64,11 @@
     <!-- 积分记录 -->
     <div class="admin-section">
         <h3>📊 积分记录</h3>
-        <div id="pointsRecords" style="max-height:300px;overflow-y:auto;"></div>
+        <div class="rec-tabs">
+            <button class="rec-tab active" id="tabEarn" onclick="switchRecTab('earn')">获得</button>
+            <button class="rec-tab" id="tabSpend" onclick="switchRecTab('spend')">消费</button>
+        </div>
+        <div id="pointsRecords" style="max-height:340px;overflow-y:auto;"></div>
     </div>
 
 </div>
@@ -64,6 +85,56 @@
 <script src="/static/js/common.js?v=20261113b"></script>
 <script>
 let rewardsChildId = 1;
+let lastRecords = [];
+let recTab = 'earn';   // earn 获得 / spend 消费
+
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+function fmtDate(s) {
+    if (!s) return '';
+    const d = new Date(s + 'T00:00:00');
+    if (isNaN(d.getTime())) return s;
+    return `${d.getMonth() + 1}月${d.getDate()}日 ${WEEKDAYS[d.getDay()]}`;
+}
+
+function switchRecTab(tab) {
+    recTab = tab;
+    document.getElementById('tabEarn').classList.toggle('active', tab === 'earn');
+    document.getElementById('tabSpend').classList.toggle('active', tab === 'spend');
+    renderRecords();
+}
+
+function renderRecords() {
+    const el = document.getElementById('pointsRecords');
+    const list = lastRecords.filter(r => recTab === 'earn' ? r.points > 0 : r.points < 0);
+    if (!list.length) {
+        el.innerHTML = `<div class="rec-empty">${recTab === 'earn' ? '还没有获得积分的记录' : '还没有兑换记录'}</div>`;
+        return;
+    }
+    let html = '';
+    list.forEach(r => {
+        const isEarn = r.points > 0;
+        const color = isEarn ? '#3f8f52' : '#c4553a';
+        const sign = isEarn ? '+' : '';
+        let detailHtml = '';
+        if (r.detail) {
+            try {
+                const arr = JSON.parse(r.detail);
+                if (Array.isArray(arr) && arr.length) {
+                    detailHtml = '<div class="rec-detail">' + arr.map(d => `${d.reason} +${d.points}`).join(' · ') + '</div>';
+                }
+            } catch (e) {}
+        }
+        html += '<div class="rec-item">';
+        html += '<div class="rec-main">';
+        html += `<div class="rec-date">${fmtDate(r.date)}</div>`;
+        html += `<div>${r.reason}</div>`;
+        html += detailHtml;
+        html += '</div>';
+        html += `<div class="rec-pts" style="color:${color};">${sign}${r.points}</div>`;
+        html += '</div>';
+    });
+    el.innerHTML = html;
+}
 
 // common.js 已负责渲染顶部按钮 + 孩子切换（switchGlobalChild 会 reload）
 (async () => {
@@ -109,26 +180,15 @@ async function loadData() {
     const res = await fetch(`/api/points?child_id=${rewardsChildId}`);
     const data = await res.json();
     document.getElementById('totalPoints').textContent = data.total;
+    document.getElementById('earnedPoints').textContent = data.earned || 0;
+    document.getElementById('spentPoints').textContent = data.spent || 0;
 
-    // 加载徽章
+    // 记录：分成「获得」「消费」两组
+    const all = data.records || [];
+    lastRecords = all;
+    renderRecords();
+
     loadBadges();
-
-    // 记录
-    const recordsEl = document.getElementById('pointsRecords');
-    if (!data.records || data.records.length === 0) {
-        recordsEl.innerHTML = '<div style="color:#999;font-size:14px;">还没有积分记录</div>';
-    } else {
-        let html = '';
-        data.records.forEach(r => {
-            const sign = r.points > 0 ? '+' : '';
-            const color = r.points > 0 ? '#4caf50' : '#e74c3c';
-            html += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:14px;">`;
-            html += `<span>${r.reason}</span>`;
-            html += `<span style="color:${color};font-weight:600;">${sign}${r.points}</span>`;
-            html += `</div>`;
-        });
-        recordsEl.innerHTML = html;
-    }
 
     // 奖励列表（从设置获取）
     const settingsRes = await fetch(`/api/settings?child_id=${rewardsChildId}`);

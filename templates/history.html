@@ -125,31 +125,29 @@ async function loadCalendar() {
 }
 
 async function loadStats() {
-    // 获取本月所有天的数据
     const res = await fetch(`/api/history/calendar?year=${currentYear}&month=${currentMonth}&child_id=${historyChildId}`);
     const cal = await res.json();
 
     let completeDays = 0;
     let totalMinutes = 0;
     let daysWithData = 0;
-    let totalPoints = 0;
 
     for (const d of cal.days) {
         if (!d) continue;
         if (d.status === 'complete') completeDays++;
-        // 获取每天详情
-        const dayRes = await fetch(`/api/history/${d.date}?child_id=${historyChildId}`);
-        const dayData = await dayRes.json();
-        if (dayData.elapsed_seconds > 0) {
-            totalMinutes += Math.floor(dayData.elapsed_seconds / 60);
+        if (d.elapsed_seconds > 0) {
+            totalMinutes += Math.floor(d.elapsed_seconds / 60);
             daysWithData++;
         }
-        totalPoints += dayData.points;
     }
+
+    // 本月积分直接从账本聚合，与积分页口径一致
+    const sumRes = await fetch(`/api/points/summary?year=${currentYear}&month=${currentMonth}&child_id=${historyChildId}`);
+    const sumData = await sumRes.json();
 
     document.getElementById('statComplete').textContent = completeDays;
     document.getElementById('statAvgTime').textContent = daysWithData > 0 ? Math.round(totalMinutes / daysWithData) : 0;
-    document.getElementById('statPoints').textContent = totalPoints;
+    document.getElementById('statPoints').textContent = sumData.total || 0;
 
     // 近7天柱状图
     const chartEl = document.getElementById('weekChart');
@@ -323,8 +321,6 @@ async function exportCSV() {
     a.click();
     URL.revokeObjectURL(url);
 }
-
-loadHistoryChildren().then(() => loadCalendar());
 </script>
 
 </body>

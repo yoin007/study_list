@@ -261,6 +261,14 @@ def init_db():
     dcols = [r[1] for r in db.execute("PRAGMA table_info(daily_records)").fetchall()]
     if dcols and 'completed_at' not in dcols:
         db.execute("ALTER TABLE daily_records ADD COLUMN completed_at TEXT")
+    # 积分记录：明细快照 + 类型（daily 每日结算 / redeem 兑换 / manual 手动 / streak 连续奖励）
+    pcols = [r[1] for r in db.execute("PRAGMA table_info(points_records)").fetchall()]
+    if pcols and 'detail' not in pcols:
+        db.execute("ALTER TABLE points_records ADD COLUMN detail TEXT DEFAULT ''")
+    if pcols and 'type' not in pcols:
+        db.execute("ALTER TABLE points_records ADD COLUMN type TEXT DEFAULT 'daily'")
+        # 旧记录分类：负分为兑换，其余为每日结算
+        db.execute("UPDATE points_records SET type='redeem' WHERE points<0")
     db.commit()
 
     # 默认设置
@@ -403,36 +411,36 @@ def _api_err(msg, code=400):
 
 
 # ============ 积分计算 ============
-def calc_today_points(child_id, today_str):
+def compute_points(child_id, day_str, settings=None):
+    """纯计算指定日期的积分，不写库。返回 (points, details)。"""
     db = get_db()
-    settings = get_all_settings()
+    if settings is None:
+        settings = get_all_settings()
 
     # 必做任务是否全部完成（只算当天原本就有的任务，不算延后过来的）
-    req = db.execute("SELECT * FROM tasks WHERE child_id=? AND original_date=? AND priority='必做' AND done=1",
-                     (child_id, today_str)).fetchall()
     req_total = db.execute("SELECT COUNT(*) as c FROM tasks WHERE child_id=? AND original_date=? AND priority='必做'",
-                           (child_id, today_str)).fetchone()['c']
-    req_done = len(req)
-    required_done = req_total > 0 and req_done == req_total
+                           (child_id, day_str)).fetchone()['c']
+    req_done = db.execute("SELECT COUNT(*) as c FROM tasks WHERE child_id=? AND original_date=? AND priority='必做' AND done=1",
+                          (child_id, day_str)).fetchone()['c']
 
     points = 0
     details = []
 
-    if required_done:
+    if req_total > 0 and req_done == req_total:
         points += settings['base_points']
         details.append({'reason': '必做任务全部完成', 'points': settings['base_points']})
 
     # 选做题完成（只算当天原本就有的）
     opt = db.execute("SELECT COUNT(*) as c FROM tasks WHERE child_id=? AND original_date=? AND priority='选做' AND done=1",
-                     (child_id, today_str)).fetchone()['c']
+                     (child_id, day_str)).fetchone()['c']
     if opt > 0:
         points += settings['optional_bonus']
-        details.append({'reason': '完成选做题', 'points': settings['optional_bonus']})
+        details.append({'reason': f'完成{opt}个选做题', 'points': settings['optional_bonus']})
 
     # 习惯任务
     habits = db.execute("SELECT * FROM habits WHERE child_id=? AND enabled=1", (child_id,)).fetchall()
     habit_done = db.execute("SELECT COUNT(*) as c FROM habit_records WHERE child_id=? AND date=? AND done=1",
-                            (child_id, today_str)).fetchone()['c']
+                            (child_id, day_str)).fetchone()['c']
     habit_total = len(habits)
     if habit_done > 0:
         p = habit_done * settings['habit_points']
@@ -443,7 +451,7 @@ def calc_today_points(child_id, today_str):
             details.append({'reason': '全部习惯任务完成', 'points': settings['habit_all_bonus']})
 
     # 家长星级评价
-    dr = db.execute("SELECT star FROM daily_records WHERE child_id=? AND date=?", (child_id, today_str)).fetchone()
+    dr = db.execute("SELECT star FROM daily_records WHERE child_id=? AND date=?", (child_id, day_str)).fetchone()
     star = dr['star'] if dr else 0
     if star == 3:
         points += settings['star3_bonus']
@@ -452,15 +460,39 @@ def calc_today_points(child_id, today_str):
         points += settings['star2_bonus']
         details.append({'reason': '家长评价2星', 'points': settings['star2_bonus']})
 
-    # 自动写入积分记录（每天只写一次，避免重复累计）
-    if points > 0:
-        existing = db.execute("SELECT COUNT(*) as c FROM points_records WHERE child_id=? AND date=? AND reason LIKE '每日结算%'",
-                              (child_id, today_str)).fetchone()['c']
-        if existing == 0:
-            db.execute("INSERT INTO points_records (child_id, date, points, reason) VALUES (?, ?, ?, ?)",
-                       (child_id, today_str, points, f'每日结算（{len(details)}项奖励）'))
-            db.commit()
+    return points, details
 
+
+def settle_day(child_id, day_str, settings=None):
+    """结算当天积分：每天一条 type='daily' 记录，分数随完成度更新（upsert）。
+
+    历史日期不自动改写，避免浏览历史时污染账本。
+    """
+    today = date.today().isoformat()
+    if day_str < today:
+        return compute_points(child_id, day_str, settings)
+
+    points, details = compute_points(child_id, day_str, settings)
+    db = get_db()
+    row = db.execute("SELECT id, points, reason, detail FROM points_records WHERE child_id=? AND date=? AND type='daily'",
+                     (child_id, day_str)).fetchone()
+    if points > 0:
+        detail_json = json.dumps(details, ensure_ascii=False)
+        reason = f'每日结算（{len(details)}项）'
+        if row:
+            # 值没变就不写，避免每次刷新页面都产生写盘
+            if row['points'] != points or row['reason'] != reason or (row['detail'] or '') != detail_json:
+                db.execute("UPDATE points_records SET points=?, reason=?, detail=? WHERE id=?",
+                           (points, reason, detail_json, row['id']))
+                db.commit()
+        else:
+            db.execute("INSERT INTO points_records (child_id, date, points, reason, detail, type) VALUES (?, ?, ?, ?, ?, 'daily')",
+                       (child_id, day_str, points, reason, detail_json))
+            db.commit()
+    elif row:
+        # 全部取消完成，清零当天记录
+        db.execute("DELETE FROM points_records WHERE id=?", (row['id'],))
+        db.commit()
     return points, details
 
 
@@ -1036,7 +1068,7 @@ def api_today():
         'habit_pause_count': dr['habit_pause_count'] if dr else 0
     }
 
-    points, details = calc_today_points(child_id, today)
+    points, details = settle_day(child_id, today)
 
     return jsonify({
         'date': today,
@@ -1893,7 +1925,10 @@ def api_history_day(target_date):
             'attachments': [dict(a) for a in attachments]
         })
     dr = db.execute("SELECT * FROM daily_records WHERE child_id=? AND date=?", (child_id, target_date)).fetchone()
-    points, details = calc_today_points(child_id, target_date)
+    points, details = compute_points(child_id, target_date)
+    # 优先展示账本里已结算的分数，未结算的日期才用实时计算值
+    acc = db.execute("SELECT points FROM points_records WHERE child_id=? AND date=? AND type='daily'",
+                     (child_id, target_date)).fetchone()
     return jsonify({
         'date': target_date,
         'tasks': task_list,
@@ -1901,7 +1936,8 @@ def api_history_day(target_date):
         'note': dr['note'] if dr else '',
         'mood': dr['mood'] if dr else '',
         'elapsed_seconds': dr['elapsed_seconds'] if dr else 0,
-        'points': points,
+        'points': acc['points'] if acc else points,
+        'live_points': points,
         'point_details': details,
         'suggested_time': dr['suggested_time'] if dr else ''
     })
@@ -1951,9 +1987,36 @@ def api_points():
     child_id, err, code = require_child_id()
     if err: return err, code
     db = get_db()
-    rows = db.execute("SELECT * FROM points_records WHERE child_id=? ORDER BY id DESC LIMIT 50", (child_id,)).fetchall()
-    total = db.execute("SELECT COALESCE(SUM(points),0) as s FROM points_records WHERE child_id=?", (child_id,)).fetchone()['s']
-    return jsonify({'total': total, 'records': [dict(r) for r in rows]})
+    rows = db.execute("SELECT * FROM points_records WHERE child_id=? ORDER BY date DESC, id DESC LIMIT 200",
+                      (child_id,)).fetchall()
+    earned = db.execute("SELECT COALESCE(SUM(points),0) as s FROM points_records WHERE child_id=? AND points>0",
+                        (child_id,)).fetchone()['s']
+    spent = db.execute("SELECT COALESCE(-SUM(points),0) as s FROM points_records WHERE child_id=? AND points<0",
+                       (child_id,)).fetchone()['s']
+    return jsonify({
+        'total': earned - spent,   # 当前可用余额
+        'earned': earned,          # 累计获得
+        'spent': spent,            # 累计已兑换
+        'records': [dict(r) for r in rows]
+    })
+
+
+@app.route('/api/points/summary')
+def api_points_summary():
+    """按月份聚合积分，供历史页使用（避免逐日重算）"""
+    child_id, err, code = require_child_id()
+    if err: return err, code
+    db = get_db()
+    year = request.args.get('year')
+    month = request.args.get('month')
+    if year and month:
+        prefix = f"{int(year):04d}-{int(month):02d}%"
+        s = db.execute("SELECT COALESCE(SUM(points),0) as s FROM points_records WHERE child_id=? AND date LIKE ?",
+                       (child_id, prefix)).fetchone()['s']
+    else:
+        s = db.execute("SELECT COALESCE(SUM(points),0) as s FROM points_records WHERE child_id=?",
+                       (child_id,)).fetchone()['s']
+    return jsonify({'total': s})
 
 
 @app.route('/api/points/redeem', methods=['POST'])
@@ -1966,13 +2029,11 @@ def api_redeem():
     reward = next((r for r in settings['rewards'] if r['id'] == reward_id), None)
     if not reward:
         return jsonify({'error': '奖励不存在'}), 400
-    total = db.execute("SELECT COALESCE(SUM(points),0) as s FROM points_records WHERE child_id=?", (child_id,)).fetchone()['s']
-    # 上面这行写错了，db没定义
     db = get_db()
     total = db.execute("SELECT COALESCE(SUM(points),0) as s FROM points_records WHERE child_id=?", (child_id,)).fetchone()['s']
     if total < reward['points']:
         return jsonify({'error': f'积分不足，需要{reward["points"]}分'}), 400
-    db.execute("INSERT INTO points_records (child_id, date, points, reason) VALUES (?, ?, ?, ?)",
+    db.execute("INSERT INTO points_records (child_id, date, points, reason, detail, type) VALUES (?, ?, ?, ?, '', 'redeem')",
                (child_id, date.today().isoformat(), -reward['points'], f"兑换：{reward['name']}"))
     db.commit()
     new_total = db.execute("SELECT COALESCE(SUM(points),0) as s FROM points_records WHERE child_id=?", (child_id,)).fetchone()['s']
@@ -2595,6 +2656,8 @@ def api_backup_restore():
                 for k, v in settings.items():
                     db.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?,?)', (k, v))
 
+            # 旧备份没有 type 列，恢复后按正负分补齐分类
+            db.execute("UPDATE points_records SET type='redeem' WHERE points<0 AND (type IS NULL OR type='daily')")
             db.commit()
         except Exception:
             db.rollback()
