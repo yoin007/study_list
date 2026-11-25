@@ -463,6 +463,62 @@ def compute_points(child_id, day_str, settings=None):
     return points, details
 
 
+def compute_streak(child_id, day_str):
+    """从 day_str 往前统计连续「必做全部完成」的天数，返回 (streak, start_date)。"""
+    db = get_db()
+    cur = datetime.strptime(day_str, '%Y-%m-%d').date()
+    streak = 0
+    while True:
+        rows = db.execute("SELECT done FROM tasks WHERE child_id=? AND date=? AND priority='必做'",
+                          (child_id, cur.isoformat())).fetchall()
+        if rows and all(r['done'] for r in rows):
+            streak += 1
+            cur -= timedelta(days=1)
+        else:
+            break
+    start = (cur + timedelta(days=1)).isoformat() if streak > 0 else None
+    return streak, start
+
+
+def award_streak_bonus(child_id, day_str, settings=None):
+    """连续打卡奖励：达到 7 / 30 天各发一次，同一轮里程碑只发一次。
+
+    记录落在里程碑当天（start + days - 1），用日期 + 原因去重，
+    因此中途断签重来后起点变化，会重新计算，不会漏发也不会重复发。
+    """
+    if settings is None:
+        settings = get_all_settings()
+    streak, start = compute_streak(child_id, day_str)
+    if streak == 0:
+        # 今天还没完成时，昨天可能已达成里程碑，回溯一天避免漏发
+        prev = (datetime.strptime(day_str, '%Y-%m-%d').date() - timedelta(days=1)).isoformat()
+        streak, start = compute_streak(child_id, prev)
+    if streak <= 0 or not start:
+        return []
+    db = get_db()
+    awarded = []
+    start_date = datetime.strptime(start, '%Y-%m-%d').date()
+    for days, key in ((7, 'streak7_bonus'), (30, 'streak30_bonus')):
+        if streak < days:
+            continue
+        bonus = int(settings.get(key, 0) or 0)
+        if bonus <= 0:
+            continue
+        milestone = (start_date + timedelta(days=days - 1)).isoformat()
+        reason = f'连续打卡{days}天奖励'
+        exists = db.execute(
+            "SELECT 1 FROM points_records WHERE child_id=? AND type='streak' AND date=? AND reason=?",
+            (child_id, milestone, reason)).fetchone()
+        if exists:
+            continue
+        detail = json.dumps([{'reason': f'连续打卡{days}天', 'points': bonus}], ensure_ascii=False)
+        db.execute("INSERT INTO points_records (child_id, date, points, reason, detail, type) VALUES (?, ?, ?, ?, ?, 'streak')",
+                   (child_id, milestone, bonus, reason, detail))
+        db.commit()
+        awarded.append({'days': days, 'points': bonus, 'date': milestone})
+    return awarded
+
+
 def settle_day(child_id, day_str, settings=None):
     """结算当天积分：每天一条 type='daily' 记录，分数随完成度更新（upsert）。
 
@@ -493,6 +549,9 @@ def settle_day(child_id, day_str, settings=None):
         # 全部取消完成，清零当天记录
         db.execute("DELETE FROM points_records WHERE id=?", (row['id'],))
         db.commit()
+
+    # 连续打卡奖励（达到 7 / 30 天时自动发放）
+    award_streak_bonus(child_id, day_str, settings)
     return points, details
 
 
@@ -2045,18 +2104,12 @@ def api_redeem():
 def api_streak():
     child_id, err, code = require_child_id()
     if err: return err, code
-    db = get_db()
-    streak = 0
-    check_date = date.today()
-    while True:
-        date_str = check_date.isoformat()
-        tasks = db.execute("SELECT * FROM tasks WHERE child_id=? AND date=? AND priority='必做'", (child_id, date_str)).fetchall()
-        if tasks and all(t['done'] for t in tasks):
-            streak += 1
-            check_date -= timedelta(days=1)
-        else:
-            break
-    return jsonify({'streak': streak})
+    today = date.today()
+    streak, _ = compute_streak(child_id, today.isoformat())
+    # 今天还没完成时，不把连续天数清零，改为从昨天往回数
+    if streak == 0:
+        streak, _ = compute_streak(child_id, (today - timedelta(days=1)).isoformat())
+    return jsonify({'streak': streak, 'next7': max(0, 7 - streak), 'next30': max(0, 30 - streak)})
 
 
 # ============ API: 设置 ============
