@@ -128,7 +128,7 @@
     border-radius:10px;background:#f5eefa;border:1px solid #e2d3f5;color:#4c3a72;
     font-size:14px;font-weight:500;line-height:1;white-space:nowrap;user-select:none}
   .char-chip.missing{background:#fbf0e4;border-color:#efd2b2;color:#a35800}
-  .char-chip i{font-style:normal;font-size:10px;color:#a35800;margin-left:1px;cursor:help}
+  .char-chip i{font-style:normal;font-size:10px;color:#a35800;margin-left:1px;cursor:pointer}
   .char-chip .chip-x{border:none;background:transparent;color:#8c76af;cursor:pointer;font-size:13px;
     padding:0 3px;line-height:1;border-radius:5px;margin-left:2px}
   .char-chip .chip-x:hover{background:#e9ddfa;color:#4c3a72}
@@ -1347,8 +1347,15 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
       csel.forEach(function(c){
         var chip = document.createElement('span');
         chip.className = 'char-chip' + (foundMap[c] ? '' : ' missing');
-        chip.innerHTML = c + (foundMap[c] ? '' : '<i title="这个字不在字库里">?</i>') +
+        chip.innerHTML = c + (foundMap[c] ? '' : '<i title="这个字不在字库里，点我看怎么处理">?</i>') +
           '<button class="chip-x" type="button" aria-label="移除">×</button>';
+        var qmark = chip.querySelector('i');
+        if(qmark){
+          qmark.addEventListener('click', function(e){
+            e.stopPropagation();
+            toast('「' + c + '」不在当前字库中。可在「按日期添加」里手动录入，或重新导入包含它的课本册次', 3500);
+          });
+        }
         chip.querySelector('.chip-x').addEventListener('click', function(){
           var idx = DB.settings.selectedChars.indexOf(c);
           if(idx >= 0) DB.settings.selectedChars.splice(idx, 1);
