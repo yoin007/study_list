@@ -96,21 +96,44 @@
   .src-block{border:1.5px solid var(--line);border-radius:16px;padding:14px 15px 12px;margin-top:12px}
   .src-block.tone-date{background:linear-gradient(180deg,#fffaf6,#fdfcf9 62%);border-color:#f2ded3}
   .src-block.tone-book{background:linear-gradient(180deg,#f6fbf9,#fdfcf9 62%);border-color:#d8eae2}
+  .src-block.tone-char{background:linear-gradient(180deg,#faf6ff,#fdfcff 62%);border-color:#ddd2f0}
   .src-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
   .src-tag{width:21px;height:21px;flex:none;border-radius:7px;display:grid;place-items:center;
     font-size:11px;font-weight:700;font-family:inherit}
   .tone-date .src-tag{background:#f7e1d8;color:var(--red)}
   .tone-book .src-tag{background:#dcefe7;color:var(--green)}
+  .tone-char .src-tag{background:#ece2fb;color:#6a4a9d}
   .src-title{font-size:14px;font-weight:600;margin:0}
   .src-badge{margin-left:auto;font-size:11.5px;color:var(--ink-soft);background:#fff;border:1px solid var(--line);
     border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .src-badge.hot{color:#fff;background:var(--red);border-color:var(--red)}
   .tone-book .src-badge.hot{background:var(--green);border-color:var(--green)}
+  .tone-char .src-badge.hot{background:#6a4a9d;border-color:#6a4a9d}
   .src-note{font-size:12px;color:var(--ink-soft);line-height:1.65;margin:0 0 8px}
   .src-actions{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:10px;
     padding-top:9px;border-top:1px dashed var(--line)}
   .src-actions .quick{color:var(--ink-soft);font-size:12px}
   .src-actions .quick.strong{color:var(--green)}
+
+  /* 来源三：按汉字输入 */
+  .char-input-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .char-input-row input[type="text"]{flex:1;min-width:0;padding:9px 12px;border:1.5px solid #cdbfdf;border-radius:10px;
+    font:inherit;background:#fff;color:var(--ink);outline:none;transition:border-color .15s}
+  .char-input-row input[type="text"]:focus{border-color:#6a4a9d}
+  .char-tips{min-height:16px;font-size:11.5px;color:var(--ink-soft);margin-bottom:6px}
+  .char-tips.warn{color:#b06020}
+  .char-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:34px}
+  .char-empty{font-size:12px;color:#b0a79c;padding:4px 2px}
+  .char-chip{display:inline-flex;align-items:center;gap:2px;padding:4px 4px 4px 9px;
+    border-radius:10px;background:#f5eefa;border:1px solid #e2d3f5;color:#4c3a72;
+    font-size:14px;font-weight:500;line-height:1;white-space:nowrap;user-select:none}
+  .char-chip.missing{background:#fbf0e4;border-color:#efd2b2;color:#a35800}
+  .char-chip i{font-style:normal;font-size:10px;color:#a35800;margin-left:1px;cursor:help}
+  .char-chip .chip-x{border:none;background:transparent;color:#8c76af;cursor:pointer;font-size:13px;
+    padding:0 3px;line-height:1;border-radius:5px;margin-left:2px}
+  .char-chip .chip-x:hover{background:#e9ddfa;color:#4c3a72}
+  .char-chip.missing .chip-x{color:#a35800}
+  .char-chip.missing .chip-x:hover{background:#f5d9b5}
 
   /* 按钮式选择片：不依赖隐藏 input，点击即有明确反馈 */
   .pick{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1.5px solid var(--line);
@@ -520,6 +543,23 @@
           </div>
         </div>
 
+        <!-- 来源三：按汉字输入 -->
+        <div class="src-block tone-char">
+          <div class="src-head">
+            <span class="src-tag">🔎</span>
+            <h3 class="src-title">按汉字输入</h3>
+            <span class="src-badge" id="charBadge">未选</span>
+          </div>
+          <p class="src-note">直接敲字或粘贴一段汉字，跨章节也能一键挑出来。一个字就是查字典（读音、笔顺、词语），多个字就是练习池。</p>
+          <div class="char-input-row">
+            <input type="text" id="charInput" placeholder="例如：你好，天大地大人亦大…" autocomplete="off" spellcheck="false">
+            <button class="btn primary small" id="charAddBtn" type="button">加入</button>
+            <button class="btn secondary small" id="charClearBtn" type="button">清空</button>
+          </div>
+          <div class="char-tips" id="charTips"></div>
+          <div class="char-chips" id="charChips"></div>
+        </div>
+
         <div class="scope-summary" id="scopeSummary"></div>
 
         <div class="quickbar">
@@ -718,6 +758,7 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
       if(!Array.isArray(d.settings.selectedDates)) d.settings.selectedDates = [];
       if(!Array.isArray(d.settings.selectedGrades)) d.settings.selectedGrades = [];
       if(!Array.isArray(d.settings.selectedLessons)) d.settings.selectedLessons = [];
+      if(!Array.isArray(d.settings.selectedChars)) d.settings.selectedChars = [];
       return d;
     }catch(e){ return blankDB(); }
   }
@@ -1255,15 +1296,17 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
       ? DB.settings.selectedLessons.length + ' 课 · ' + lessonChars + ' 字' : '未选';
     bBadge.classList.toggle('hot', DB.settings.selectedLessons.length > 0);
 
+    renderCharInput();
     renderScopeSummary();
   }
 
-  /* 两个来源取并集；都没有选择时用全部字库 */
+  /* 三个来源取并集；都没有选择时用全部字库 */
   function renderScopeSummary(){
     var pool = scopeEntries().length;
-    var none = !DB.settings.selectedDates.length && !DB.settings.selectedLessons.length;
+    var none = !DB.settings.selectedDates.length && !DB.settings.selectedLessons.length && !DB.settings.selectedChars.length;
     var dateCount = DB.settings.selectedDates.length ? entriesForDates(DB.settings.selectedDates).length : 0;
     var bookCount = DB.settings.selectedLessons.length ? entriesForLessons(DB.settings.selectedLessons).length : 0;
+    var charCount = entriesForChars(DB.settings.selectedChars).length;
     var el = $('#scopeSummary');
     if(none){
       el.innerHTML = '没有筛选条件，本轮用全部字库 <b>' + pool + '</b> 字';
@@ -1271,11 +1314,75 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
       var parts = [];
       if(dateCount) parts.push('日期 ' + dateCount + ' 字');
       if(bookCount) parts.push('课本 ' + bookCount + ' 字');
+      if(charCount) parts.push('输入 ' + charCount + ' 字');
       el.innerHTML = '本轮练习范围 <b>' + pool + '</b> 字' +
         '<span class="sep">＝</span>' + parts.join(' ＋ ') +
-        (dateCount + bookCount > pool ? '（有重复，已合并去重）' : '');
+        ((dateCount + bookCount + charCount > pool) ? '（有重复，已合并去重）' : '');
     }
     $('#poolInfo').textContent = '共 ' + pool + ' 字';
+  }
+
+  /* ---------- 来源三：按汉字输入 ---------- */
+  function isCjkChar(c){
+    if(!c) return false;
+    var cp = c.charCodeAt(0);
+    return (cp >= 0x4e00 && cp <= 0x9fff) ||   /* CJK 统一汉字 */
+           (cp >= 0x3400 && cp <= 0x4dbf) ||   /* 扩展 A */
+           (cp >= 0xf900 && cp <= 0xfaff);     /* 兼容汉字 */
+  }
+  function extractHanzi(s){
+    var out = [];
+    for(var i = 0; i < (s || '').length; i++) if(isCjkChar(s[i])) out.push(s[i]);
+    return out;
+  }
+  function renderCharInput(){
+    var csel = DB.settings.selectedChars || [];
+    var box = $('#charChips');
+    box.innerHTML = '';
+    if(!csel.length){
+      box.innerHTML = '<div class="char-empty">还没加字，从上面输入框敲几个试试～</div>';
+    }else{
+      var foundMap = {};
+      DB.entries.forEach(function(e){ foundMap[e.char] = true; });
+      csel.forEach(function(c){
+        var chip = document.createElement('span');
+        chip.className = 'char-chip' + (foundMap[c] ? '' : ' missing');
+        chip.innerHTML = c + (foundMap[c] ? '' : '<i title="这个字不在字库里">?</i>') +
+          '<button class="chip-x" type="button" aria-label="移除">×</button>';
+        chip.querySelector('.chip-x').addEventListener('click', function(){
+          var idx = DB.settings.selectedChars.indexOf(c);
+          if(idx >= 0) DB.settings.selectedChars.splice(idx, 1);
+          onScopeChange();
+        });
+        box.appendChild(chip);
+      });
+    }
+    var found = entriesForChars(csel).length;
+    var missed = csel.length - found;
+    var badge = $('#charBadge');
+    if(csel.length === 0){ badge.textContent = '未选'; badge.classList.remove('hot'); }
+    else if(found === csel.length){ badge.textContent = found + ' 字'; badge.classList.add('hot'); }
+    else{ badge.textContent = found + '/' + csel.length + ' 字'; badge.classList.add('hot'); }
+    var tips = $('#charTips');
+    if(missed > 0){
+      tips.className = 'char-tips warn';
+      tips.textContent = '有 ' + missed + ' 个字不在字库里（点标签上的 ? 查看），不会加入练习池';
+    }else{
+      tips.className = 'char-tips';
+      tips.textContent = '';
+    }
+  }
+  function addCharsFromInput(){
+    var input = $('#charInput');
+    var cs = extractHanzi(input.value);
+    if(!cs.length){ toast('没识别到汉字，换个输入试试'); return; }
+    var merged = (DB.settings.selectedChars || []).slice();
+    cs.forEach(function(c){ if(merged.indexOf(c) < 0) merged.push(c); });
+    DB.settings.selectedChars = merged;
+    input.value = '';
+    onScopeChange();
+    var found = entriesForChars(cs).length;
+    toast('加入 ' + cs.length + ' 字（字库匹配 ' + found + ' 字）');
   }
 
   /* ---------- 渲染：错题本 ---------- */
@@ -1435,10 +1542,17 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     $('#badgeReview').textContent = pendingChars(false).length;
   }
   /* ---------- 本轮练习：范围内每个字都会被抽到 ---------- */
-  /* 两个来源取并集：日期添加的字 ＋ 课本选中的字；都没选时用全部字库 */
+  /* 三个来源取并集：日期添加的字 ＋ 课本选中的字 ＋ 输入框挑的字；都没选时用全部字库 */
+  function entriesForChars(chars){
+    if(!chars || !chars.length) return [];
+    var set = {}, out = [];
+    DB.entries.forEach(function(e){ set[e.char] = e; });
+    chars.forEach(function(c){ if(set[c] && !out.some(function(x){ return x.char === c; })) out.push(set[c]); });
+    return out;
+  }
   function scopeEntries(){
-    var dsel = DB.settings.selectedDates, lsel = DB.settings.selectedLessons;
-    if(!dsel.length && !lsel.length) return DB.entries.slice();
+    var dsel = DB.settings.selectedDates, lsel = DB.settings.selectedLessons, csel = DB.settings.selectedChars;
+    if(!dsel.length && !lsel.length && !csel.length) return DB.entries.slice();
     var out = [], seen = {};
     function addAll(list){
       list.forEach(function(e){
@@ -1448,6 +1562,7 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
     }
     if(dsel.length) addAll(entriesForDates(dsel));
     if(lsel.length) addAll(entriesForLessons(lsel));
+    if(csel.length) addAll(entriesForChars(csel));
     return out;
   }
   function scopeChars(){
@@ -2160,6 +2275,32 @@ var HanziWriter=function(){"use strict";var t;const e="undefined"==typeof window
   });
   $('#clearLessons').addEventListener('click', function(){
     DB.settings.selectedLessons = []; onScopeChange(); toast('已清空课本选择');
+  });
+
+  /* 来源三：汉字输入 */
+  $('#charAddBtn').addEventListener('click', addCharsFromInput);
+  $('#charClearBtn').addEventListener('click', function(){
+    if(!DB.settings.selectedChars.length){ toast('还没加字'); return; }
+    DB.settings.selectedChars = []; onScopeChange(); toast('已清空输入的字');
+  });
+  $('#charInput').addEventListener('keydown', function(e){
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    var cs = extractHanzi(this.value);
+    if(!cs.length){ toast('没识别到汉字，换个输入试试'); return; }
+    if(cs.length === 1){
+      /* 单字 = 查字典：跳到练习卡直接看读音 + 笔顺动画 */
+      var en = entryOf(cs[0]);
+      if(!en){ toast('「' + cs[0] + '」不在字库里'); return; }
+      current = en.char; judged = null; snap = null; shown = false; draws = 0;
+      mode = 'practice'; rebuildRound(true); onScopeChange();
+      this.value = '';
+      setTimeout(function(){ showStroke(); }, 80);
+      toast('查字典：' + en.char);
+    }else{
+      /* 多字 = 加入练习池 */
+      addCharsFromInput();
+    }
   });
 
   $('#drawBtn').addEventListener('click', draw);
