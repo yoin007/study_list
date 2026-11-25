@@ -631,15 +631,29 @@ body {
     cursor: default;
 }
 
-.cal-day.status-complete { background: #4caf50; color: white; }
-.cal-day.status-partial { background: #ffc107; color: #333; }
-.cal-day.status-pending { background: #f5f5f5; color: #999; }
-.cal-day.status-empty { background: #fafafa; color: #ccc; }
+/* 状态色改为低饱和，避免刺眼，同时保证格内三行文字都清晰可读 */
+.cal-day.status-complete { background: #437a52; color: #fff; }
+.cal-day.status-partial { background: #e0b354; color: #3d2f00; }
+.cal-day.status-pending { background: #f5f2ea; color: #6b6459; }
+.cal-day.status-empty { background: #faf7f0; color: #b3aa9c; }
 
 .cal-day .count {
     font-size: 10px;
-    opacity: 0.8;
+    opacity: 0.95;
 }
+
+.cal-day .cal-time {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    opacity: 0.95;
+}
+
+/* 用时文字按底色区分，避免在彩色背景中被淹没 */
+.cal-day.status-complete .cal-time { color: #fff; }
+.cal-day.status-partial .cal-time { color: #3d2f00; }
+.cal-day.status-pending .cal-time,
+.cal-day.status-empty .cal-time { color: #6b6459; }
 
 .cal-nav {
     display: flex;
