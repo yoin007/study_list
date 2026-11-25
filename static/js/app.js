@@ -559,6 +559,7 @@ function renderHabits() {
                 data-target="${target}" data-base="${status.hb_elapsed||0}"
                 data-start="${status.hb_start||''}" data-paused="${paused?1:0}"
                 style="font-size:18px;font-weight:700;color:#4b7791;font-variant-numeric:tabular-nums;${(running||paused)?'':'display:none;'}">${formatHabitDur(remaining)}</span>`;
+            html += `<button onclick="manualCompleteHabit('${h.id}')" title="提前完成" style="background:#f0f0f0;color:#666;border:none;padding:8px 16px;border-radius:16px;cursor:pointer;font-size:13px;margin-left:6px;">完成打勾</button>`;
         } else {
             // 无倒计时的检查项
             html += `<button onclick="toggleHabit('${h.id}')" style="background:#f0f0f0;color:#666;border:none;padding:8px 16px;border-radius:16px;cursor:pointer;font-size:13px;">完成打勾</button>`;
@@ -600,6 +601,18 @@ async function toggleHabit(habitId) {
     delete habitTimers[habitId];
     await fetch(`/api/habit/${habitId}/toggle`, {method: 'POST'});
     await loadToday();
+}
+
+// 手动完成有倒计时的习惯任务（提前做完了）
+async function manualCompleteHabit(habitId) {
+    const name = todayData.habits.find(h => String(h.id) === String(habitId))?.name || '任务';
+    if (!confirm(`确定提前完成"${name}"吗？`)) return;
+    // 先把前端计时标记完成，防止到点重复触发
+    habitTimers[habitId] = 'done';
+    delete habitTimers[habitId];
+    await fetch(`/api/habit/${habitId}/toggle`, {method: 'POST'});
+    await loadToday();
+    showToast(`🎉 ${name}完成 · +5 积分`);
 }
 
 // ========== 今日积分 ==========

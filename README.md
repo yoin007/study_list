@@ -65,7 +65,7 @@ static/css/style.css   样式
 static/apps/           小应用
   hanzi/               汉字随机认读（单页自包含）
     data/pep_xiezi.json    人教版 1-6 年级写字表（一年级上册为 2024 版 100 字）
-    data/pep_lessons.json  按课文分组的写字表 + 教材词语（一年级上册 25 项：课文与语文园地）
+    data/pep_lessons.json  按课文分组的写字表 + 词语（12 册全覆盖，每字 2 个常用词，含课本语境词优先）
     data/*.json            笔顺数据（按需下载，不入库）
   english/             英语单词练习
     data/fltrp_1a.json     外研版一年级起点 一上 Module 1-10 词表
