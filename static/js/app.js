@@ -634,13 +634,19 @@ function renderFocusChart() {
         focus += sec;
         if (sec > 0) rows.push({desc: t.desc || t.subject, subject: t.subject, sec, live});
     });
-    // 专注合计 / 停顿（墙钟快照 − 专注）
+    // 简化口径：墙钟=净运行（实际在写的时间）；暂停=在场总−墙钟（没在写的全归暂停）
     const focusEl = document.getElementById('focusSummary');
     if (focusEl) {
-        const wall = todayData.timer.elapsed_seconds || 0;
-        const gap = Math.max(0, wall - focus);
-        focusEl.innerHTML = `✍️ 专注合计 <strong>${formatTime(focus)}</strong>` +
-            (wall > 0 ? ` ｜ ⏸ 停顿/切换 <strong>${formatTime(gap)}</strong>` : '');
+        const wall = todayData.timer.elapsed_seconds || 0;      // 墙钟：净运行时间
+        const present = todayData.timer.present_seconds || 0;   // 在场总时长
+        const paused = Math.max(0, present - wall);             // 暂停累计（没在写的时间）
+        const pauseCnt = todayData.timer.pause_count || 0;      // 暂停次数
+        let html = `📊 在场总 <strong>${formatTime(present)}</strong>`;
+        if (present > 0 || wall > 0) {
+            html += ` ＝ ✍️ 墙钟 <strong>${formatTime(wall)}</strong>`;
+            if (paused > 0) html += ` ＋ ⏸ 暂停 <strong>${formatTime(paused)}</strong>${pauseCnt>0?`（${pauseCnt}次）`:''}`;
+        }
+        focusEl.innerHTML = html;
     }
     if (rows.length === 0) { card.style.display = 'none'; return; }
     card.style.display = 'block';
@@ -702,7 +708,9 @@ function renderTimer() {
     } else if (timer.status === 'paused') {
         btn.textContent = '继续';
         btn.className = 'timer-btn';
+        display.textContent = formatTime(timer.elapsed_seconds);
         status.textContent = '已暂停';
+        startTimerDisplay();
     } else if (timer.status === 'done') {
         btn.textContent = '重新开始';
         btn.className = 'timer-btn stop';

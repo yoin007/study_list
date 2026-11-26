@@ -221,9 +221,62 @@ window.topSpeak = function(text, lang) {
         }
     }
 
-    // —— 老数据迁移 + 合并：无前缀原始 key（单网页版遗留）→ 当前孩子命名空间 ——
+    // —— 深度合并 hanzi/english DB 结构 ——
+    // entries 按 char 去重取并集；settings.selectedChars / selectedDates 取并集；
+    // mistakes / words 按 key 合并（两侧都保留）；其他字段 src 优先。
+    function deepMergeDB(src, tgt) {
+        if (!tgt || typeof tgt !== 'object') return src;
+        var out = {};
+        // entries
+        var mergedEntries = [];
+        var seen = {};
+        if (tgt.entries && Array.isArray(tgt.entries)) {
+            tgt.entries.forEach(function (e) {
+                if (e && e.char && !seen[e.char]) { mergedEntries.push(e); seen[e.char] = true; }
+            });
+        }
+        if (src && src.entries && Array.isArray(src.entries)) {
+            src.entries.forEach(function (e) {
+                if (e && e.char && !seen[e.char]) { mergedEntries.push(e); seen[e.char] = true; }
+            });
+        }
+        out.entries = mergedEntries;
+
+        // mistakes / words — merge dictionaries
+        ['mistakes', 'words'].forEach(function (k) {
+            out[k] = {};
+            if (tgt[k] && typeof tgt[k] === 'object') Object.assign(out[k], tgt[k]);
+            if (src && src[k] && typeof src[k] === 'object') Object.assign(out[k], src[k]);
+        });
+
+        // settings — selectedChars / selectedDates 取并集，其他 src 优先
+        if (src && src.settings && typeof src.settings === 'object') {
+            var s = JSON.parse(JSON.stringify(src.settings));
+            if (tgt.settings && typeof tgt.settings === 'object') {
+                ['selectedChars', 'selectedDates'].forEach(function (k) {
+                    var a = (s[k] || []).slice();
+                    var b = (tgt.settings[k] || []).slice();
+                    b.forEach(function (x) { if (a.indexOf(x) < 0) a.push(x); });
+                    s[k] = a;
+                });
+            }
+            out.settings = s;
+        } else if (tgt.settings) {
+            out.settings = tgt.settings;
+        }
+
+        // 其他顶层字段 src 优先（version / updatedAt 等）
+        var topKeys = ['version', 'updatedAt'];
+        topKeys.forEach(function (k) {
+            if (src && src[k] !== undefined) out[k] = src[k];
+            else if (tgt[k] !== undefined) out[k] = tgt[k];
+        });
+
+        return out;
+    }
+
+    // —— 老数据迁移 + 深度合并 ——
     function mergeValInto(targetKey, sourceVal) {
-        // 尝试 JSON 合并：如果 source 有 entries 而 target 的 entries 为空/更少，用 source 覆盖
         var targetStr = realGet(targetKey);
         if (!targetStr) {
             realSet(targetKey, sourceVal);
@@ -232,12 +285,16 @@ window.topSpeak = function(text, lang) {
         try {
             var src = JSON.parse(sourceVal);
             var tgt = JSON.parse(targetStr);
-            var srcEntries = (src && src.entries && src.entries.length) || 0;
-            var tgtEntries = (tgt && tgt.entries && tgt.entries.length) || 0;
-            if (srcEntries > tgtEntries) {
-                realSet(targetKey, sourceVal);
+            // 两边都是带 entries 的 DB 结构 → 深度合并
+            if (src && tgt && typeof src === 'object' && typeof tgt === 'object' &&
+                (src.entries || tgt.entries)) {
+                var merged = deepMergeDB(src, tgt);
+                realSet(targetKey, JSON.stringify(merged));
                 return true;
             }
+            // 其他情况（纯字符串等）：source 直接覆盖
+            realSet(targetKey, sourceVal);
+            return true;
         } catch (e) {}
         return false;
     }

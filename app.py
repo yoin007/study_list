@@ -261,6 +261,9 @@ def init_db():
     dcols = [r[1] for r in db.execute("PRAGMA table_info(daily_records)").fetchall()]
     if dcols and 'completed_at' not in dcols:
         db.execute("ALTER TABLE daily_records ADD COLUMN completed_at TEXT")
+    # 墙钟累计暂停秒数（持久化，避免重启丢失导致暂停时间被错误计入墙钟总时长）
+    if dcols and 'total_paused' not in dcols:
+        db.execute("ALTER TABLE daily_records ADD COLUMN total_paused INTEGER DEFAULT 0")
     # 积分记录：明细快照 + 类型（daily 每日结算 / redeem 兑换 / manual 手动 / streak 连续奖励）
     pcols = [r[1] for r in db.execute("PRAGMA table_info(points_records)").fetchall()]
     if pcols and 'detail' not in pcols:
@@ -886,10 +889,13 @@ def api_app_data_put(slug):
     db = get_db()
     now = datetime.now().isoformat()
     for k, v in keys.items():
+        # 前端 collect() 从 localStorage 拿到的是已经 stringify 的 JSON 字符串，直接存；
+        # 如果前端未来改成传 dict/list 结构，这里兜底 json.dumps。
+        stored = v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
         db.execute(
             "INSERT INTO app_data (child_id, slug, data_key, value, updated_at) VALUES (?,?,?,?,?) "
             "ON CONFLICT(child_id, slug, data_key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
-            (child_id, slug, str(k), json.dumps(v, ensure_ascii=False), now))
+            (child_id, slug, str(k), stored, now))
     db.commit()
     return jsonify({'success': True, 'updated_at': now, 'count': len(keys)})
 
@@ -1043,12 +1049,13 @@ def get_timer_state(child_id):
             running_task = db.execute(
                 "SELECT 1 FROM tasks WHERE child_id=? AND date=? AND tt_start IS NOT NULL AND tt_pause_start IS NULL LIMIT 1",
                 (child_id, today)).fetchone()
+            total_paused = dr['total_paused'] if 'total_paused' in dr.keys() else 0
             if running_task:
                 timer_state[child_id] = {
                     'status': 'running',
                     'start_time': dr['start_time'],
                     'pause_start': None,
-                    'total_paused': 0,
+                    'total_paused': total_paused,
                     'pause_count': dr['pause_count'],
                     'date': today
                 }
@@ -1065,7 +1072,7 @@ def get_timer_state(child_id):
                     'status': 'paused',
                     'start_time': dr['start_time'],
                     'pause_start': pause_start,
-                    'total_paused': 0,
+                    'total_paused': total_paused,
                     'pause_count': dr['pause_count'],
                     'date': today
                 }
@@ -1082,7 +1089,7 @@ def get_timer_state(child_id):
     return timer_state[child_id]
 
 def _calc_elapsed(ts):
-    """根据计时状态计算已用秒数（扣除暂停）"""
+    """墙钟已用秒数（净运行时间：在场总 − 暂停累计）"""
     if not ts['start_time']:
         return 0
     start = datetime.fromisoformat(ts['start_time'])
@@ -1091,6 +1098,22 @@ def _calc_elapsed(ts):
     else:
         end = datetime.now()
     return max(0, int((end - start).total_seconds() - ts.get('total_paused', 0)))
+
+
+def _calc_present(ts, dr=None):
+    """在场总时长（从开始到结束/现在的时间跨度）"""
+    if not ts['start_time']:
+        return 0
+    start = datetime.fromisoformat(ts['start_time'])
+    if ts['status'] == 'done' and ts.get('_end_time'):
+        end = datetime.fromisoformat(ts['_end_time'])
+    elif ts['status'] == 'done' and dr and dr['end_time']:
+        end = datetime.fromisoformat(dr['end_time'])
+    elif ts['status'] == 'paused' and ts.get('pause_start'):
+        end = datetime.fromisoformat(ts['pause_start'])
+    else:
+        end = datetime.now()
+    return max(0, int((end - start).total_seconds()))
 
 
 def save_timer_state(child_id):
@@ -1105,11 +1128,11 @@ def save_timer_state(child_id):
     elapsed = _calc_elapsed(ts)
     db.execute("""
         UPDATE daily_records
-        SET start_time=?, end_time=?, pause_count=?, elapsed_seconds=?
+        SET start_time=?, end_time=?, pause_count=?, elapsed_seconds=?, total_paused=?
         WHERE child_id=? AND date=?
     """, (ts['start_time'],
           datetime.now().isoformat() if ts['status'] == 'done' else None,
-          ts['pause_count'], elapsed, child_id, today))
+          ts['pause_count'], elapsed, ts.get('total_paused', 0), child_id, today))
     db.commit()
 
 
@@ -1157,31 +1180,33 @@ def api_today():
     dr = db.execute("SELECT * FROM daily_records WHERE child_id=? AND date=?", (child_id, today)).fetchone()
     ts = get_timer_state(child_id)
 
-    # 计算实时已用时间
-    elapsed = 0
-    if ts['status'] == 'running' and ts['start_time']:
-        elapsed = int((datetime.now() - datetime.fromisoformat(ts['start_time'])).total_seconds() - ts['total_paused'])
-    elif ts['status'] == 'paused' and ts['start_time']:
-        elapsed = int((datetime.fromisoformat(ts['pause_start']) - datetime.fromisoformat(ts['start_time'])).total_seconds() - ts['total_paused'])
-    elif ts['status'] in ('done', 'idle'):
+    # 计算实时已用时间（统一走 _calc_elapsed，避免负数 + 消除重复逻辑）
+    elapsed = _calc_elapsed(ts)
+    present = _calc_present(ts, dr)
+    if ts['status'] in ('done', 'idle'):
         # 已结束或未开始：显示当天已保存的用时，避免刷新后归零
         elapsed = (dr['elapsed_seconds'] or 0) if dr else 0
+        if dr and dr['end_time'] and dr['start_time']:
+            present = max(0, int((datetime.fromisoformat(dr['end_time']) -
+                                  datetime.fromisoformat(dr['start_time'])).total_seconds()))
+        elif dr:
+            present = dr['elapsed_seconds'] or 0
 
     # running/paused 时把实时用时增量落库，避免忘记点结束导致历史为0
     if ts['status'] in ('running', 'paused') and elapsed > 0:
         db.execute("INSERT OR IGNORE INTO daily_records (child_id, date) VALUES (?, ?)",
                    (child_id, today))
-        db.execute("UPDATE daily_records SET elapsed_seconds=? WHERE child_id=? AND date=?",
-                   (elapsed, child_id, today))
+        db.execute("UPDATE daily_records SET elapsed_seconds=?, total_paused=? WHERE child_id=? AND date=?",
+                   (elapsed, ts.get('total_paused', 0), child_id, today))
         db.commit()
 
     timer = {
         'status': ts['status'],
         'start_time': ts['start_time'],
-        'elapsed_seconds': elapsed,
+        'elapsed_seconds': elapsed,       # 墙钟：净运行（=专注+任务间隙）
+        'present_seconds': present,        # 在场总：start → now/end 时间跨度
         'focus_seconds': focus_sec,
         'pause_count': ts['pause_count'],
-        'total_paused': ts['total_paused'],
         'pause_start': ts['pause_start'],
         'habit_pause_count': dr['habit_pause_count'] if dr else 0
     }
@@ -1377,8 +1402,8 @@ def _ensure_wall_running_if_idle(child_id, when_iso):
         ts['pause_start'] = None
         ts['status'] = 'running'
         db.execute("INSERT OR IGNORE INTO daily_records (child_id, date) VALUES (?, ?)", (child_id, today))
-        db.execute("UPDATE daily_records SET pause_count=? WHERE child_id=? AND date=?",
-                   (ts['pause_count'], child_id, today))
+        db.execute("UPDATE daily_records SET pause_count=?, total_paused=? WHERE child_id=? AND date=?",
+                   (ts['pause_count'], ts['total_paused'], child_id, today))
         return ('auto_resume', None)
 
     # wall_status == 'idle' → 检查习惯倒计时是否在跑（互斥）
@@ -1396,8 +1421,8 @@ def _ensure_wall_running_if_idle(child_id, when_iso):
     ts['total_paused'] = 0
     ts['pause_count'] = 0
     db.execute("INSERT OR IGNORE INTO daily_records (child_id, date) VALUES (?, ?)", (child_id, today))
-    db.execute("UPDATE daily_records SET start_time=?, pause_count=? WHERE child_id=? AND date=?",
-               (ts['start_time'], 0, child_id, today))
+    db.execute("UPDATE daily_records SET start_time=?, pause_count=?, total_paused=? WHERE child_id=? AND date=?",
+               (ts['start_time'], 0, 0, child_id, today))
     return ('auto_start', None)
 
 
@@ -1652,8 +1677,8 @@ def api_timer_start():
     db = get_db()
     db.execute("INSERT OR IGNORE INTO daily_records (child_id, date) VALUES (?, ?)",
                (child_id, today))
-    db.execute("UPDATE daily_records SET start_time=? WHERE child_id=? AND date=?",
-               (ts['start_time'], child_id, today))
+    db.execute("UPDATE daily_records SET start_time=?, pause_count=?, total_paused=? WHERE child_id=? AND date=?",
+               (ts['start_time'], 0, 0, child_id, today))
     # 联动：自动开启第一个未完成任务的专注计时
     _link_auto_start_task(db, child_id, today, ts['start_time'])
     db.commit()
@@ -1680,6 +1705,9 @@ def api_timer_pause():
             paused_dur = (datetime.now() - datetime.fromisoformat(ts['pause_start'])).total_seconds()
             ts['total_paused'] += paused_dur
             ts['pause_start'] = None
+        # 同步持久化 total_paused
+        db.execute("UPDATE daily_records SET pause_count=?, total_paused=? WHERE child_id=? AND date=?",
+                   (ts['pause_count'], ts['total_paused'], child_id, today))
         # 联动：恢复任务专注计时
         _link_resume_paused_task(db, child_id, today, now_iso)
     db.commit()
@@ -1721,10 +1749,10 @@ def api_timer_stop():
     db.execute("INSERT OR IGNORE INTO daily_records (child_id, date) VALUES (?, ?)",
                (child_id, today))
     db.execute("""UPDATE daily_records
-                  SET start_time=?, end_time=?, elapsed_seconds=?, pause_count=?
+                  SET start_time=?, end_time=?, elapsed_seconds=?, pause_count=?, total_paused=?
                   WHERE child_id=? AND date=?""",
                (ts['start_time'], datetime.now().isoformat(), elapsed,
-                ts['pause_count'], child_id, today))
+                ts['pause_count'], ts['total_paused'], child_id, today))
     db.commit()
     return jsonify({'success': True, 'elapsed': elapsed})
 
@@ -2043,6 +2071,15 @@ def api_history_day(target_date):
             'attachments': [dict(a) for a in attachments]
         })
     dr = db.execute("SELECT * FROM daily_records WHERE child_id=? AND date=?", (child_id, target_date)).fetchone()
+    # 在场总时长：end_time − start_time（已完成）或 elapsed_seconds（未完成时的净运行兜底）
+    if dr and dr['start_time']:
+        if dr['end_time']:
+            present = max(0, int((datetime.fromisoformat(dr['end_time']) -
+                                  datetime.fromisoformat(dr['start_time'])).total_seconds()))
+        else:
+            present = dr['elapsed_seconds'] or 0
+    else:
+        present = 0
     points, details = compute_points(child_id, target_date)
     # 优先展示账本里已结算的分数，未结算的日期才用实时计算值
     acc = db.execute("SELECT points FROM points_records WHERE child_id=? AND date=? AND type='daily'",
@@ -2054,6 +2091,8 @@ def api_history_day(target_date):
         'note': dr['note'] if dr else '',
         'mood': dr['mood'] if dr else '',
         'elapsed_seconds': dr['elapsed_seconds'] if dr else 0,
+        'present_seconds': present,
+        'pause_count': dr['pause_count'] if dr else 0,
         'points': acc['points'] if acc else points,
         'live_points': points,
         'point_details': details,

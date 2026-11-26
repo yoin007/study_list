@@ -40,7 +40,7 @@
 
     <!-- 计时器卡片 -->
     <div class="timer-card">
-        <div style="font-size:14px;color:#999;">本次学习时长（墙钟）</div>
+        <div style="font-size:14px;color:#999;">墙钟（实际在写）</div>
         <div class="timer-display" id="timerDisplay">00:00</div>
         <button class="timer-btn" id="timerBtn" onclick="handleTimer()">开始写作业</button>
         <div class="timer-status" id="timerStatus"></div>
@@ -49,10 +49,9 @@
         <details class="timer-legend" style="margin-top:8px;font-size:12px;color:#666;">
             <summary style="cursor:pointer;color:#4b7791;outline:none;">ℹ️ 计时怎么算？（点开看）</summary>
             <div style="margin-top:8px;line-height:1.9;">
-                <div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#4b7791;vertical-align:middle;margin-right:6px;"></span><strong>墙钟</strong>＝从坐到桌前到收拾完的在座总时长（含休息、切换）</div>
-                <div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#4caf50;vertical-align:middle;margin-right:6px;"></span><strong>专注</strong>＝各任务实际落笔时间相加，是真正写进去的时间</div>
-                <div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#cfd8dc;vertical-align:middle;margin-right:6px;"></span><strong>停顿/切换</strong>＝墙钟 − 专注（休息、找东西、换任务的时间）</div>
-                <div style="margin-top:6px;color:#888;">规则：同一时刻只有一个计时在走；开始写作业自动给第一个任务计时，完成打勾后自动接力下一个；点暂停，任务一起停。</div>
+                <div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#4b7791;vertical-align:middle;margin-right:6px;"></span><strong>墙钟</strong>＝实际在写作业的时间（暂停时自动停，专注+任务间隙都算）</div>
+                <div><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#f5a623;vertical-align:middle;margin-right:6px;"></span><strong>暂停</strong>＝在场总 − 墙钟（主动按暂停、吃饭、切任务、喝水——没在写的时间全归这里）</div>
+                <div style="margin-top:6px;color:#888;">在场总 ＝ 墙钟 ＋ 暂停；暂停次数 = 今天主动按了几次暂停按钮。</div>
             </div>
         </details>
     </div>
@@ -122,10 +121,10 @@
     <div class="eye-care-content">
         <h2>📢 作业开始啦</h2>
         <ul style="text-align:left;display:inline-block;font-size:15px;line-height:1.9;margin:10px 0;">
-            <li><b>墙钟</b> = 全局计时，暂停墙钟 = 所有任务一起暂停</li>
-            <li>同一时刻只有一个任务在计时，点另一个任务会自动切过去</li>
+            <li><b>墙钟</b>＝实际在写作业的时间（暂停时自动停）；<b>暂停</b>＝在场总 − 墙钟（没在写的时间全归这里）</li>
+            <li>同一时刻只有一个任务在计时，完成打勾后自动接力下一项</li>
+            <li>点「暂停」墙钟和所有任务一起停；暂停次数 = 今天主动按了几次</li>
             <li>每 20 分钟记得抬头远眺 20 秒护眼</li>
-            <li>墙钟暂停次数 = 今天总共休息了几次</li>
         </ul>
         <br>
         <button class="timer-btn" onclick="closeWallNotice()">准备好了，开始！</button>

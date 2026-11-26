@@ -184,7 +184,11 @@ async function showDayDetail(dateStr) {
 
     // 基本信息
     const starStr = '★'.repeat(data.star) + '☆'.repeat(3 - data.star);
-    const totalSec = data.elapsed_seconds || 0;
+    const wallSec = data.elapsed_seconds || 0;          // 墙钟：净运行
+    const presentSec = data.present_seconds || wallSec;  // 在场总时长
+    const pausedSec = Math.max(0, presentSec - wallSec); // 暂停累计（没在写的时间）
+    const pauseCnt = data.pause_count || 0;              // 暂停次数
+    const totalSec = presentSec;
     const h = Math.floor(totalSec / 3600);
     const m = Math.floor((totalSec % 3600) / 60);
     const s = totalSec % 60;
@@ -192,26 +196,24 @@ async function showDayDetail(dateStr) {
     const moodMap = {'顺畅': '😊 顺畅', '一般': '😐 一般', '磨蹭': '😫 磨蹭'};
     const moodStr = data.mood ? moodMap[data.mood] || data.mood : '未记录';
     html += `<div style="margin-bottom:12px;font-size:14px;color:#666;">`;
-    html += `总用时：<strong style="color:#333;">${timeStr}</strong> | 评价：${starStr} | 状态：${moodStr} | 当日积分：<strong style="color:#c08a2e;">${data.points}</strong>`;
+    html += `在场总 <strong style="color:#333;">${timeStr}</strong> ｜ 墙钟 <strong>${formatHistDur(wallSec)}</strong> ｜ 暂停 ${formatHistDur(pausedSec)}${pauseCnt>0?`（${pauseCnt}次）`:''} | 评价：${starStr} | 状态：${moodStr} | 当日积分：<strong style="color:#c08a2e;">${data.points}</strong>`;
     html += `</div>`;
 
-    // 时间三段对比：墙钟 = 专注 + 停顿/切换
-    const focusSec = (data.tasks || []).reduce((s, t) => s + (t.duration_seconds || 0), 0);
-    const gapSec = Math.max(0, totalSec - focusSec);
-    if (totalSec > 0 || focusSec > 0) {
-        const wall = Math.max(totalSec, focusSec);
-        const fp = wall ? Math.round(focusSec / wall * 100) : 0;
-        const gp = wall ? Math.round(gapSec / wall * 100) : 0;
+    // 时间构成：墙钟 + 暂停 = 在场总
+    if (presentSec > 0 || wallSec > 0) {
+        const total = Math.max(presentSec, wallSec, 1);
+        const wp = Math.round(wallSec / total * 100);
+        const pp = 100 - wp;
         html += `<div style="margin:10px 0;padding:12px;background:#f8fafc;border-radius:10px;">
             <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:8px;">⏱ 时间构成</div>
             <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;background:#eee;">
-                <div style="width:${fp}%;background:#4b7791;" title="专注"></div>
-                <div style="width:${gp}%;background:#cfd8dc;" title="停顿"></div>
+                <div style="width:${wp}%;background:#4b7791;" title="墙钟"></div>
+                <div style="width:${pp}%;background:#f5a623;" title="暂停"></div>
             </div>
             <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;color:#666;flex-wrap:wrap;">
-                <span><i style="display:inline-block;width:10px;height:10px;background:#4b7791;border-radius:2px;"></i> 专注 ${formatHistDur(focusSec)}</span>
-                <span><i style="display:inline-block;width:10px;height:10px;background:#cfd8dc;border-radius:2px;"></i> 停顿/切换 ${formatHistDur(gapSec)}</span>
-                <span>在座总时长 ${timeStr}</span>
+                <span><i style="display:inline-block;width:10px;height:10px;background:#4b7791;border-radius:2px;"></i> 墙钟（专注在写）${formatHistDur(wallSec)}</span>
+                ${pausedSec>0?`<span><i style="display:inline-block;width:10px;height:10px;background:#f5a623;border-radius:2px;"></i> 暂停（没在写）${formatHistDur(pausedSec)}${pauseCnt>0?` · ${pauseCnt}次`:''}</span>`:''}
+                <span>在场总 ${formatHistDur(presentSec)}</span>
             </div>
         </div>`;
     }
